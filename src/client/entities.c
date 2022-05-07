@@ -375,6 +375,18 @@ void CL_DeltaFrame(void)
     ent = &cl_entities[cl.frame.clientNum + 1];
     Com_PlayerToEntityState(&cl.frame.ps, &ent->current);
 
+
+	extplayer_state_t *player;
+	for (i = 0; i < MAX_CLIENTS; i++) {
+		player = &cl_players[i];
+		if (!player->visible)
+			continue;
+
+
+		parse_entity_event(i);
+	}
+
+
     for (i = 0; i < cl.frame.numEntities; i++) {
         j = (cl.frame.firstEntity + i) & PARSE_ENTITIES_MASK;
         state = &cl.entityStates[j];
@@ -459,6 +471,101 @@ CL_AddPacketEntities
 
 ===============
 */
+extern void CL_PredictPlayer(extplayer_state_t	*player, float delta_time);
+static void CL_AddPacketPlayers(void)
+{
+	entity_t            ent;
+	entity_state_t      *s1;
+	int                 i;
+	int                 pnum;
+	centity_t           *cent;
+	extplayer_state_t	*player;
+	clientinfo_t        *ci;
+	unsigned int        effects, renderfx;
+
+
+	memset(&ent, 0, sizeof(ent));
+	
+	unsigned current_time = Sys_Milliseconds();
+
+	for (pnum = 0; pnum < MAX_CLIENTS; pnum++) {
+		player = &cl_players[pnum];
+
+		if (!player->visible)
+			continue;
+
+		cent = &cl_entities[pnum];
+
+
+		effects = 0;
+		renderfx = 0;
+		if (pnum == cl.frame.clientNum + 1)
+			continue;
+
+		float delta = (float)(current_time - player->last_update) / 1000;
+		delta += (float)cls.measure.ping / 1000;
+
+		CL_PredictPlayer(player, delta);
+
+
+		VectorCopy(player->pred_origin, ent.origin);
+		VectorCopy(ent.origin, ent.oldorigin);
+
+
+		VectorMA(ent.origin, 1 - cl.lerpfrac, player->err_origin, ent.origin);
+
+
+		if (player->modelindex == 255) {
+			// use custom player skin
+			ent.skinnum = 0;
+			ci = &cl.clientinfo[player->skinnum & 0xff];
+			ent.skin = ci->skin;
+			ent.model = ci->model;
+			if (!ent.skin || !ent.model) {
+				ent.skin = cl.baseclientinfo.skin;
+				ent.model = cl.baseclientinfo.model;
+				ci = &cl.baseclientinfo;
+			}
+			if (renderfx & RF_USE_DISGUISE) {
+				char buffer[MAX_QPATH];
+
+				Q_concat(buffer, sizeof(buffer), "players/", ci->model_name, "/disguise.pcx");
+				ent.skin = R_RegisterSkin(buffer);
+			}
+		}
+		else {
+			ent.skinnum = player->skinnum;
+			ent.skin = 0;
+			ent.model = cl.model_draw[player->modelindex];
+			if (ent.model == cl_mod_laser || ent.model == cl_mod_dmspot)
+				renderfx |= RF_NOSHADOW;
+		}
+
+
+		LerpAngles(player->oldangles, player->angles,
+			cl.lerpfrac, ent.angles);
+		// mimic original ref_gl "leaning" bug (uuugly!)
+		if (player->modelindex == 255 && cl_rollhack->integer) {
+			ent.angles[ROLL] = -ent.angles[ROLL];
+		}
+
+
+
+		ent.frame = player->frame;
+		ent.oldframe = player->oldframe;
+		ent.backlerp = 1.0f - cl.lerpfrac;
+
+		ent.flags = renderfx;
+
+
+		V_AddEntity(&ent);
+		VectorCopy(ent.origin, cent->current.origin);
+		VectorCopy(ent.origin, cent->prev.origin);
+		VectorCopy(ent.origin, cent->lerp_origin);
+	}
+}
+
+
 static void CL_AddPacketEntities(void)
 {
     entity_t            ent;
@@ -479,6 +586,8 @@ static void CL_AddPacketEntities(void)
 
     memset(&ent, 0, sizeof(ent));
 
+
+
     for (pnum = 0; pnum < cl.frame.numEntities; pnum++) {
         i = (cl.frame.firstEntity + pnum) & PARSE_ENTITIES_MASK;
         s1 = &cl.entityStates[i];
@@ -486,7 +595,8 @@ static void CL_AddPacketEntities(void)
         cent = &cl_entities[s1->number];
 
         effects = s1->effects;
-        renderfx = s1->renderfx;
+		renderfx = s1->renderfx;
+
 
         // set frame
         if (effects & EF_ANIM01)
@@ -544,10 +654,23 @@ static void CL_AddPacketEntities(void)
             LerpVector(cent->prev.old_origin, cent->current.old_origin,
                        cl.lerpfrac, ent.oldorigin);
         } else {
-            if (s1->number == cl.frame.clientNum + 1) {
-                // use predicted origin
-                VectorCopy(cl.playerEntityOrigin, ent.origin);
-                VectorCopy(cl.playerEntityOrigin, ent.oldorigin);
+			if (s1->number == cl.frame.clientNum + 1) {
+				// use predicted origin
+				VectorCopy(cl.playerEntityOrigin, ent.origin);
+				VectorCopy(cl.playerEntityOrigin, ent.oldorigin);
+			} else if (s1->velocity[0] || s1->velocity[1] || s1->velocity[2]) {
+				//float delta = ((float)(100 - (cl.servertime - cl.time))) / 1000;
+				//delta += (float)cls.measure.ping / 1000;
+				//VectorCopy(s1->origin, ent.origin);
+				//VectorMA(s1->origin, delta, s1->velocity, ent.origin);
+				//VectorMA(ent.origin, 1 - cl.lerpfrac, cl_players[s1->number].err_origin, ent.origin);
+				//VectorCopy(ent.origin, cl_players[s1->number].err_oldorigin);
+				
+				extplayer_state_t *player = &cl_players[s1->number];
+				VectorCopy(player->pred_origin, ent.origin);
+				VectorMA(ent.origin, 1 - cl.lerpfrac, cl_players[s1->number].err_origin, ent.origin);
+
+				VectorCopy(ent.origin, cl_players[s1->number].err_oldorigin);
             } else {
                 // interpolate origin
                 LerpVector(cent->prev.origin, cent->current.origin,
@@ -1245,6 +1368,7 @@ void CL_AddEntities(void)
 {
     CL_CalcViewValues();
     CL_FinishViewValues();
+	CL_AddPacketPlayers();
     CL_AddPacketEntities();
     CL_AddTEnts();
     CL_AddParticles();

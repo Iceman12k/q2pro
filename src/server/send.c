@@ -555,6 +555,7 @@ static void emit_snd(client_t *client, message_packet_t *msg)
         flags |= SND_POS;   // entity is not present in frame
     }
 
+	
     MSG_WriteByte(svc_sound);
     MSG_WriteByte(flags);
     MSG_WriteByte(msg->index);

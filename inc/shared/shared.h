@@ -1443,6 +1443,8 @@ typedef struct entity_state_s {
     vec3_t  origin;
     vec3_t  angles;
     vec3_t  old_origin;     // for lerping
+	vec3_t	velocity;
+
     int     modelindex;
     int     modelindex2, modelindex3, modelindex4;  // weapons, CTF flags, etc
     int     frame;
@@ -1457,6 +1459,30 @@ typedef struct entity_state_s {
                             // events only go out for a single frame, they
                             // are automatically cleared each frame
 } entity_state_t;
+
+
+typedef struct extplayer_state_s {
+	qboolean visible;
+	unsigned last_update;
+	unsigned modelindex;
+	unsigned skinnum;
+
+	unsigned oldframe;
+	unsigned frame;
+
+	vec3_t	oldangles;
+	vec3_t	angles;
+
+	vec3_t	origin;
+	vec3_t	pred_origin;
+
+	vec3_t	velocity;
+
+	vec3_t	err_origin;
+	vec3_t	err_oldorigin;
+} extplayer_state_t;
+
+extplayer_state_t cl_players[MAX_CLIENTS];
 
 //==============================================
 

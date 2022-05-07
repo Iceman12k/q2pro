@@ -27,6 +27,176 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 =====================================================================
 */
 
+
+static inline void CL_ParseDeltaPlayer(server_frame_t  *frame,
+	int             newnum,
+	entity_state_t  *old,
+	int             bits)
+{
+	entity_state_t    *state;
+
+	// suck up to MAX_EDICTS for servers that don't cap at MAX_PACKET_ENTITIES
+	if (frame->numEntities >= MAX_EDICTS) {
+		Com_Error(ERR_DROP, "%s: MAX_EDICTS exceeded", __func__);
+	}
+
+	state = &cl.entityStates[cl.numEntityStates & PARSE_ENTITIES_MASK];
+	cl.numEntityStates++;
+	frame->numEntities++;
+
+#ifdef _DEBUG
+	if (cl_shownet->integer > 2 && bits) {
+		MSG_ShowDeltaEntityBits(bits);
+		Com_LPrintf(PRINT_DEVELOPER, "\n");
+	}
+#endif
+
+	MSG_ParseDeltaPlayer(old, state, newnum, bits, cl.esFlags);
+
+	// shuffle previous origin to old
+	if (!(bits & U_OLDORIGIN) && !(state->renderfx & RF_BEAM))
+		VectorCopy(old->origin, state->old_origin);
+}
+
+static void CL_ParsePacketPlayers(server_frame_t *oldframe,
+	server_frame_t *frame)
+{
+	int            newnum;
+	int            bits;
+	entity_state_t    *oldstate;
+	int            oldindex, oldnum;
+	int i;
+
+	frame->firstEntity = cl.numEntityStates;
+	frame->numEntities = 0;
+
+	// delta from the entities present in oldframe
+	oldindex = 0;
+	oldstate = NULL;
+	if (!oldframe) {
+		oldnum = 99999;
+	}
+	else {
+		if (oldindex >= oldframe->numEntities) {
+			oldnum = 99999;
+		}
+		else {
+			i = oldframe->firstEntity + oldindex;
+			oldstate = &cl.entityStates[i & PARSE_ENTITIES_MASK];
+			oldnum = oldstate->number;
+		}
+	}
+
+	while (1) {
+		newnum = MSG_ParseEntityBits(&bits);
+		if (newnum < 0 || newnum >= MAX_EDICTS) {
+			Com_Error(ERR_DROP, "%s: bad number: %d", __func__, newnum);
+		}
+
+		if (msg_read.readcount > msg_read.cursize) {
+			Com_Error(ERR_DROP, "%s: read past end of message", __func__);
+		}
+
+		if (!newnum) {
+			break;
+		}
+
+		while (oldnum < newnum) {
+			// one or more entities from the old packet are unchanged
+			SHOWNET(3, "   unchanged: %i\n", oldnum);
+			//CL_ParseDeltaPlayer(frame, oldnum, oldstate, 0);
+
+			oldindex++;
+
+			if (oldindex >= oldframe->numEntities) {
+				oldnum = 99999;
+			}
+			else {
+				i = oldframe->firstEntity + oldindex;
+				oldstate = &cl.entityStates[i & PARSE_ENTITIES_MASK];
+				oldnum = oldstate->number;
+			}
+		}
+
+		if (bits & U_REMOVE) {
+			// the entity present in oldframe is not in the current frame
+			SHOWNET(2, "   remove: %i\n", newnum);
+			if (oldnum != newnum) {
+				Com_DPrintf("U_REMOVE: oldnum != newnum\n");
+			}
+			if (!oldframe) {
+				Com_Error(ERR_DROP, "%s: U_REMOVE with NULL oldframe", __func__);
+			}
+
+			oldindex++;
+
+			if (oldindex >= oldframe->numEntities) {
+				oldnum = 99999;
+			}
+			else {
+				i = oldframe->firstEntity + oldindex;
+				oldstate = &cl.entityStates[i & PARSE_ENTITIES_MASK];
+				oldnum = oldstate->number;
+			}
+			continue;
+		}
+
+		if (oldnum == newnum) {
+			// delta from previous state
+			SHOWNET(2, "   delta: %i ", newnum);
+			//CL_ParseDeltaPlayer(frame, newnum, oldstate, bits);
+			if (!bits) {
+				SHOWNET(2, "\n");
+			}
+
+			oldindex++;
+
+			if (oldindex >= oldframe->numEntities) {
+				oldnum = 99999;
+			}
+			else {
+				i = oldframe->firstEntity + oldindex;
+				oldstate = &cl.entityStates[i & PARSE_ENTITIES_MASK];
+				oldnum = oldstate->number;
+			}
+			continue;
+		}
+
+		if (oldnum > newnum) {
+			// delta from baseline
+			SHOWNET(2, "   baseline: %i ", newnum);
+			//CL_ParseDeltaPlayer(frame, newnum, &cl.baselines[newnum], bits);
+			if (!bits) {
+				SHOWNET(2, "\n");
+			}
+			continue;
+		}
+
+	}
+
+	// any remaining entities in the old frame are copied over
+	while (oldnum != 99999) {
+		// one or more entities from the old packet are unchanged
+		SHOWNET(3, "   unchanged: %i\n", oldnum);
+		//CL_ParseDeltaPlayer(frame, oldnum, oldstate, 0);
+
+		oldindex++;
+
+		if (oldindex >= oldframe->numEntities) {
+			oldnum = 99999;
+		}
+		else {
+			i = oldframe->firstEntity + oldindex;
+			oldstate = &cl.entityStates[i & PARSE_ENTITIES_MASK];
+			oldnum = oldstate->number;
+		}
+	}
+}
+
+
+
+
+
 static inline void CL_ParseDeltaEntity(server_frame_t  *frame,
                                        int             newnum,
                                        entity_state_t  *old,
@@ -186,6 +356,8 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
     }
 }
 
+
+extern void CL_PredictPlayer(extplayer_state_t	*player, float delta_time);
 static void CL_ParseFrame(int extrabits)
 {
     uint32_t bits, extraflags;
@@ -338,6 +510,96 @@ static void CL_ParseFrame(int extrabits)
 #endif
         frame.clientNum = cl.clientNum;
     }
+
+
+
+	// parse visible players
+	if (cls.serverProtocol == PROTOCOL_VERSION_Q2PRO && cls.protocolVersion >= PROTOCOL_VERSION_Q2PRO_REKI_CLIENTENTS) {
+		if (MSG_ReadByte() != svc_extplayerinfo) {
+			Com_Error(ERR_DROP, "%s: not extplayerinfo", __func__);
+		}
+		//CL_ParsePacketEntities(oldframe, &frame);
+		//CL_ParsePacketPlayers(oldframe, &frame);
+
+		int i;
+		for (i = 0; i < MAX_CLIENTS; i++)
+			cl_players[i].visible = false;
+
+		unsigned current_time = Sys_Milliseconds();
+
+		centity_t *cent;
+		extplayer_state_t	*player;
+		int indx = MSG_ReadByte();
+		while (indx != 255)
+		{
+			player = &cl_players[indx];
+			cent = &cl_entities[indx];
+
+			player->visible = true;
+			
+
+			float delta;
+			if (player->last_update)
+			{
+				delta = (float)(current_time - player->last_update) / 1000;
+				delta += (float)cls.measure.ping / 1000;
+				CL_PredictPlayer(player, delta);
+				VectorCopy(player->pred_origin, player->err_oldorigin);
+				//VectorScale(player->pred_origin, 8, player->err_oldorigin);
+			}
+			else
+				VectorClear(player->err_oldorigin);
+
+
+
+
+			player->last_update = current_time;
+
+			cent->current.event = MSG_ReadByte();
+			cent->event_frame = cl.frame.number+1;
+
+
+			player->modelindex = MSG_ReadShort();
+			player->skinnum = MSG_ReadShort();
+
+			player->oldframe = player->frame;
+			player->frame = MSG_ReadShort();
+
+
+			VectorCopy(player->angles, player->oldangles);
+			player->angles[0] = (((float)MSG_ReadShort()) / 0xFFFF) * 360;
+			player->angles[1] = (((float)MSG_ReadShort()) / 0xFFFF) * 360;
+			player->angles[2] = (((float)MSG_ReadShort()) / 0xFFFF) * 360;
+
+			player->origin[0] = MSG_ReadShort();
+			player->origin[1] = MSG_ReadShort();
+			player->origin[2] = MSG_ReadShort();
+			VectorScale(player->origin, 0.125, cent->current.origin);
+			VectorCopy(cent->current.origin, cent->current.old_origin);
+
+
+			player->velocity[0] = MSG_ReadShort();
+			player->velocity[1] = MSG_ReadShort();
+			player->velocity[2] = MSG_ReadShort();
+
+
+
+			delta = (float)(current_time - player->last_update) / 1000;
+			delta += (float)cls.measure.ping / 1000;
+			CL_PredictPlayer(player, delta);
+
+
+
+			if (player->err_oldorigin[0] != 0 || player->err_oldorigin[1] != 0 || player->err_oldorigin[2] != 0)
+			{
+				VectorSubtract(player->err_oldorigin, player->pred_origin, player->err_origin);
+			}
+			
+			indx = MSG_ReadByte();
+		}
+	}
+
+
 
     // parse packetentities
     if (cls.serverProtocol <= PROTOCOL_VERSION_DEFAULT) {
@@ -608,6 +870,9 @@ static void CL_ParseServerData(void)
         if (cls.protocolVersion >= PROTOCOL_VERSION_Q2PRO_SHORT_ANGLES) {
             cl.esFlags |= MSG_ES_SHORTANGLES;
         }
+		//if (cls.protocolVersion >= PROTOCOL_VERSION_Q2PRO_REKI_CLIENTENTS) {
+		//	cl.esFlags |= MSG_ES_PLAYER;
+		//}
         if (cls.protocolVersion >= PROTOCOL_VERSION_Q2PRO_WATERJUMP_HACK) {
             i = MSG_ReadByte();
             if (i) {
@@ -618,7 +883,7 @@ static void CL_ParseServerData(void)
         cl.pmp.speedmult = 2;
         cl.pmp.flyhack = true; // fly hack is unconditionally enabled
         cl.pmp.flyfriction = 4;
-    }
+	}
 
     if (cl.clientNum == -1) {
         SCR_PlayCinematic(levelname);

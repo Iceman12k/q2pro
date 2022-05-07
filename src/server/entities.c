@@ -37,6 +37,108 @@ SV_EmitPacketEntities
 Writes a delta update of an entity_packed_t list to the message.
 =============
 */
+static void SV_EmitPacketPlayers(client_t         *client,
+	client_frame_t   *from,
+	client_frame_t   *to,
+	int              clientEntityNum)
+{
+	entity_packed_t *newent;
+	const entity_packed_t *oldent;
+	int i, oldnum, newnum, oldindex, newindex, from_num_entities;
+	msgEsFlags_t flags;
+
+	if (!from)
+		from_num_entities = 0;
+	else
+		from_num_entities = from->num_entities;
+
+	newindex = 0;
+	oldindex = 0;
+	oldent = newent = NULL;
+	while (newindex < to->num_entities || oldindex < from_num_entities) {
+		if (newindex >= to->num_entities) {
+			newnum = 9999;
+		}
+		else {
+			i = (to->first_entity + newindex) % svs.num_entities;
+			newent = &svs.entities[i];
+			newnum = newent->number;
+		}
+
+		if (oldindex >= from_num_entities) {
+			oldnum = 9999;
+		}
+		else {
+			i = (from->first_entity + oldindex) % svs.num_entities;
+			oldent = &svs.entities[i];
+			oldnum = oldent->number;
+		}
+
+		// we only want players
+		if (newnum > client->maxclients)
+		{
+			oldindex++;
+			newindex++;
+			continue;
+		}
+
+
+
+		if (newnum == oldnum) {
+			// Delta update from old position. Because the force parm is false,
+			// this will not result in any bytes being emitted if the entity has
+			// not changed at all. Note that players are always 'newentities',
+			// this updates their old_origin always and prevents warping in case
+			// of packet loss.
+			flags = client->esFlags;
+			flags |= MSG_ES_NEWENTITY;
+			//MSG_WriteDeltaEntity(oldent, newent, flags);
+			MSG_WriteDeltaPlayer(oldent, newent, flags);
+			oldindex++;
+			newindex++;
+			continue;
+		}
+
+		if (newnum < oldnum) {
+			// this is a new entity, send it from the baseline
+			flags = client->esFlags | MSG_ES_FORCE | MSG_ES_NEWENTITY;
+			oldent = client->baselines[newnum >> SV_BASELINES_SHIFT];
+			if (oldent) {
+				oldent += (newnum & SV_BASELINES_MASK);
+			}
+			else {
+				oldent = &nullEntityState;
+			}
+			if (newnum == clientEntityNum) {
+				flags |= MSG_ES_FIRSTPERSON;
+				VectorCopy(oldent->origin, newent->origin);
+				VectorCopy(oldent->angles, newent->angles);
+			}
+			if (Q2PRO_SHORTANGLES(client, newnum)) {
+				flags |= MSG_ES_SHORTANGLES;
+			}
+			Com_Printf("Add New Player\n");
+			//MSG_WriteDeltaEntity(oldent, newent, flags);
+			MSG_WriteDeltaPlayer(oldent, newent, flags);
+			newindex++;
+			continue;
+		}
+
+		if (newnum > oldnum) {
+			// the old entity isn't present in the new message
+			//MSG_WriteDeltaEntity(oldent, NULL, MSG_ES_FORCE);
+			MSG_WriteDeltaPlayer(oldent, newent, flags);
+			Com_Printf("Remove Player\n");
+			oldindex++;
+			continue;
+		}
+
+
+
+	}
+}
+
+
 static void SV_EmitPacketEntities(client_t         *client,
                                   client_frame_t   *from,
                                   client_frame_t   *to,
@@ -45,12 +147,15 @@ static void SV_EmitPacketEntities(client_t         *client,
     entity_packed_t *newent;
     const entity_packed_t *oldent;
     int i, oldnum, newnum, oldindex, newindex, from_num_entities;
+	qboolean ignore_players;
     msgEsFlags_t flags;
 
     if (!from)
         from_num_entities = 0;
     else
         from_num_entities = from->num_entities;
+
+	ignore_players = (client->protocol == PROTOCOL_VERSION_Q2PRO && client->version >= PROTOCOL_VERSION_Q2PRO_REKI_CLIENTENTS);
 
     newindex = 0;
     oldindex = 0;
@@ -80,7 +185,13 @@ static void SV_EmitPacketEntities(client_t         *client,
             // of packet loss.
             flags = client->esFlags;
             if (newnum <= client->maxclients) {
-                flags |= MSG_ES_NEWENTITY;
+				if (ignore_players)
+				{
+					oldindex++;
+					newindex++;
+					continue;
+				}
+				flags |= MSG_ES_NEWENTITY;
             }
             if (newnum == clientEntityNum) {
                 flags |= MSG_ES_FIRSTPERSON;
@@ -98,6 +209,11 @@ static void SV_EmitPacketEntities(client_t         *client,
 
         if (newnum < oldnum) {
             // this is a new entity, send it from the baseline
+			if (newnum <= client->maxclients && ignore_players) {
+				newindex++;
+				continue;
+			}
+
             flags = client->esFlags | MSG_ES_FORCE | MSG_ES_NEWENTITY;
             oldent = client->baselines[newnum >> SV_BASELINES_SHIFT];
             if (oldent) {
@@ -120,6 +236,11 @@ static void SV_EmitPacketEntities(client_t         *client,
 
         if (newnum > oldnum) {
             // the old entity isn't present in the new message
+			if (newnum <= client->maxclients && ignore_players) {
+				oldindex++;
+				continue;
+			}
+
             MSG_WriteDeltaEntity(oldent, NULL, MSG_ES_FORCE);
             oldindex++;
             continue;
@@ -311,6 +432,61 @@ void SV_WriteFrameToClient_Enhanced(client_t *client)
 
     client->suppress_count = 0;
     client->frameflags = 0;
+
+
+
+	// delta encode the playerstates
+	if (client->protocol == PROTOCOL_VERSION_Q2PRO) {
+		// delta encode the clientNum
+		if (client->version >= PROTOCOL_VERSION_Q2PRO_REKI_CLIENTENTS) {
+			MSG_WriteByte(svc_extplayerinfo);
+			//MSG_WriteDeltaPlayerstate_Default(oldstate, &frame->ps);
+			//SV_EmitPacketPlayers(client, oldframe, frame, clientEntityNum);
+
+			extplayer_state_t	*player;
+			entity_packed_t *newent;
+			int i, ind, newnum, newindex;
+			newindex = 0;
+
+			for (i = 0; i < client->maxclients; i++)
+			{
+				ind = (frame->first_entity + newindex) % svs.num_entities;
+				newent = &svs.entities[ind];
+				newnum = newent->number;
+				if (newnum > client->maxclients)
+				{
+					newindex++;
+					continue;
+				}
+
+				newindex++;
+				MSG_WriteByte(newnum);
+
+				MSG_WriteByte(newent->event);
+
+				MSG_WriteShort(newent->modelindex);
+				MSG_WriteShort(newent->skinnum);
+				MSG_WriteShort(newent->frame);
+
+				MSG_WriteShort(newent->angles[0]);
+				MSG_WriteShort(newent->angles[1]);
+				MSG_WriteShort(newent->angles[2]);
+
+
+				MSG_WriteShort(newent->origin[0]);
+				MSG_WriteShort(newent->origin[1]);
+				MSG_WriteShort(newent->origin[2]);
+
+				MSG_WriteShort(newent->velocity[0]);
+				MSG_WriteShort(newent->velocity[1]);
+				MSG_WriteShort(newent->velocity[2]);
+			}
+
+			MSG_WriteByte(255);
+		}
+	}
+
+
 
     // delta encode the entities
     SV_EmitPacketEntities(client, oldframe, frame, clientEntityNum);

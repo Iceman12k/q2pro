@@ -1027,6 +1027,34 @@ Pmove
 Can be called by either the server or the client
 ================
 */
+void Pmove_Simple(pmove_t *pmove, pmoveParams_t *params)
+{
+	pm = pmove;
+	pmp = params;
+	
+	// clear results
+	pm->numtouch = 0;
+	VectorClear(pm->viewangles);
+	pm->viewheight = 0;
+	pm->groundentity = NULL;
+	pm->watertype = 0;
+	pm->waterlevel = 0;
+	
+	VectorScale(pm->s.origin, 0.125f, pml.origin);
+	VectorScale(pm->s.velocity, 0.125f, pml.velocity);
+
+	pml.frametime = (float)pm->cmd.msec * 0.001f;
+
+	PM_CheckDuck();
+	PM_Friction();
+	PM_AirMove();
+
+	pm->s.origin[0] = (int)(pml.origin[0] * 8);
+	pm->s.origin[1] = (int)(pml.origin[1] * 8);
+	pm->s.origin[2] = (int)(pml.origin[2] * 8);
+}
+
+
 void Pmove(pmove_t *pmove, pmoveParams_t *params)
 {
     pm = pmove;

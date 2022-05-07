@@ -262,3 +262,69 @@ void CL_PredictMovement(void)
     VectorScale(pm.s.velocity, 0.125f, cl.predicted_velocity);
     VectorCopy(pm.viewangles, cl.predicted_angles);
 }
+
+
+
+
+void CL_PredictPlayer(extplayer_state_t	*player, float delta_time)
+{
+	pmove_t pm;
+
+	if (!player->visible)
+		return;
+
+	memset(&pm, 0, sizeof(pm));
+	pm.trace = CL_Trace;
+	pm.pointcontents = CL_PointContents;
+
+	//pm.cmd.msec = delta_time;//cls.frametime * 1000;
+	//delta_time /= (float)1000.0;
+
+	//delta_time = ((float)(current_time - player->last_update))/1000;
+	//delta_time += 0.05;
+
+	pm.s.pm_type = PM_NORMAL;
+	pm.s.origin[0] = player->origin[0];
+	pm.s.origin[1] = player->origin[1];
+	pm.s.origin[2] = player->origin[2];
+	pm.s.pm_flags = PMF_ON_GROUND;
+
+
+	pm.s.velocity[0] = player->velocity[0];
+	pm.s.velocity[1] = player->velocity[1];
+	pm.s.velocity[2] = player->velocity[2];
+
+
+#if 1
+	//Pmove(&pm, &cl.pmp);
+	//pm.cmd.msec = (int)(delta_time * 1000);
+	//Pmove_Simple(&pm, &cl.pmp);
+
+	///*
+	int k = 0;
+	int pm_timeleft = (int)(delta_time * 1000);
+	do
+	{
+		pm.cmd.msec = min(pm_timeleft, 16);
+		Pmove_Simple(&pm, &cl.pmp);
+		pm_timeleft -= 16;
+		k++;
+	} while (pm_timeleft > 1 && k < 30);
+	//*/
+
+
+	player->pred_origin[0] = (float)(pm.s.origin[0] / 8);
+	player->pred_origin[1] = (float)(pm.s.origin[1] / 8);
+	player->pred_origin[2] = (float)(pm.s.origin[2] / 8);
+#endif
+
+
+#if 0
+	player->pred_origin[0] = player->origin[0] + player->velocity[0] * delta_time;
+	player->pred_origin[1] = player->origin[1] + player->velocity[1] * delta_time;
+	player->pred_origin[2] = player->origin[2] + player->velocity[2] * delta_time;
+#endif
+}
+
+
+

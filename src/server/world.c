@@ -281,6 +281,15 @@ void PF_LinkEdict(edict_t *ent)
         break;
     }
 
+
+	if (ent->client)
+	{
+		ent->s.velocity[0] = (int)ent->client->ps.pmove.velocity[0];
+		ent->s.velocity[1] = (int)ent->client->ps.pmove.velocity[1];
+		ent->s.velocity[2] = (int)ent->client->ps.pmove.velocity[2];
+	}
+
+
     SV_LinkEdict(&sv.cm, ent);
 
     // if first time, make sure old_origin is valid

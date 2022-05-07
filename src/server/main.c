@@ -1010,6 +1010,11 @@ static void init_pmove_and_es_flags(client_t *newcl)
         if (newcl->version >= PROTOCOL_VERSION_Q2PRO_WATERJUMP_HACK) {
             force = 1;
         }
+		/*
+		if (newcl->version >= PROTOCOL_VERSION_Q2PRO_REKI_CLIENTENTS) {
+			newcl->esFlags |= MSG_ES_PLAYER;
+		}
+		*/
     }
     newcl->pmp.waterhack = sv_waterjump_hack->integer >= force;
 }
@@ -1885,6 +1890,8 @@ unsigned SV_Frame(unsigned msec)
 #if USE_CLIENT
     time_before_game = time_after_game = 0;
 #endif
+
+	//Com_LPrintf(2, "%i msec\n", sv.frametime);
 
     // advance local server time
     svs.realtime += msec;

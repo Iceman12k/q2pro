@@ -29,6 +29,7 @@ typedef struct {
     int16_t     origin[3];
     int16_t     angles[3];
     int16_t     old_origin[3];
+	int16_t		velocity[3];
     uint8_t     modelindex;
     uint8_t     modelindex2;
     uint8_t     modelindex3;
@@ -76,7 +77,8 @@ typedef enum {
     MSG_ES_UMASK        = (1 << 4),
     MSG_ES_BEAMORIGIN   = (1 << 5),
     MSG_ES_SHORTANGLES  = (1 << 6),
-    MSG_ES_REMOVE       = (1 << 7)
+    MSG_ES_REMOVE       = (1 << 7),
+	MSG_ES_PLAYER		= (1 << 8),
 } msgEsFlags_t;
 
 extern sizebuf_t    msg_write;

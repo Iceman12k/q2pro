@@ -92,7 +92,8 @@ extern cvar_t *gl_brightness;
 client_static_t cls;
 client_state_t  cl;
 
-centity_t   cl_entities[MAX_EDICTS];
+centity_t			cl_entities[MAX_EDICTS];
+extplayer_state_t	cl_players[MAX_CLIENTS];
 
 // used for executing stringcmds
 cmdbuf_t    cl_cmdbuf;
@@ -3224,6 +3225,9 @@ unsigned CL_Frame(unsigned msec)
 
     // predict all unacknowledged movements
     CL_PredictMovement();
+
+	//CL_PredictOtherPlayers(msec);
+
 
     Con_RunConsole();
 

@@ -47,7 +47,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define PROTOCOL_VERSION_Q2PRO_SERVER_STATE     1019    // r1302
 #define PROTOCOL_VERSION_Q2PRO_EXTENDED_LAYOUT  1020    // r1354
 #define PROTOCOL_VERSION_Q2PRO_ZLIB_DOWNLOADS   1021    // r1358
-#define PROTOCOL_VERSION_Q2PRO_CURRENT          1021    // r1358
+#define PROTOCOL_VERSION_Q2PRO_REKI_CLIENTENTS  1022    // Reki's fork
+#define PROTOCOL_VERSION_Q2PRO_CURRENT          1022    // r1358
 
 #define PROTOCOL_VERSION_MVD_MINIMUM            2009    // r168
 #define PROTOCOL_VERSION_MVD_CURRENT            2010    // r177
@@ -135,6 +136,10 @@ typedef enum {
     svc_zdownload,
     svc_gamestate, // q2pro specific, means svc_playerupdate in r1q2
     svc_setting,
+
+	// reki qw esque player state packet
+	svc_extplayerinfo,
+
 
     svc_num_types
 } svc_ops_t;
