@@ -148,6 +148,10 @@ typedef struct {
     server_state_t  state;      // precache commands are only valid during load
     int             spawncount; // random number generated each server spawn
 
+#if USE_CLIENT
+    int         gamedetecthack;
+#endif
+
 #if USE_FPS
     int         framerate;
     int         frametime;
@@ -161,7 +165,6 @@ typedef struct {
 
     char        name[MAX_QPATH];            // map name, or cinematic name
     cm_t        cm;
-    char        *entitystring;
 
     char        configstrings[MAX_CONFIGSTRINGS][MAX_QPATH];
 
@@ -565,8 +568,6 @@ extern cvar_t       *g_view_predict;
 extern cvar_t       *g_view_low;
 extern cvar_t       *g_view_high;
 
-extern cvar_t       *map_override_path;
-
 extern cvar_t       *sv_timeout;
 extern cvar_t       *sv_zombietime;
 extern cvar_t       *sv_ghostime;
@@ -783,12 +784,14 @@ void G_InitializeExtensions(void);
 void SV_AutoSaveBegin(mapcmd_t *cmd);
 void SV_AutoSaveEnd(void);
 void SV_CheckForSavegame(mapcmd_t *cmd);
+void SV_CheckForEnhancedSavegames(void);
 void SV_RegisterSavegames(void);
 #else
-#define SV_AutoSaveBegin(cmd)       (void)0
-#define SV_AutoSaveEnd()            (void)0
-#define SV_CheckForSavegame(cmd)    (void)0
-#define SV_RegisterSavegames()      (void)0
+#define SV_AutoSaveBegin(cmd)           (void)0
+#define SV_AutoSaveEnd()                (void)0
+#define SV_CheckForSavegame(cmd)        (void)0
+#define SV_CheckForEnhancedSavegames()  (void)0
+#define SV_RegisterSavegames()          (void)0
 #endif
 
 #ifdef AQTION_EXTENSION
