@@ -789,6 +789,141 @@ static void *SV_LoadGameLibrary(const char *libdir, const char *gamedir)
     return SV_LoadGameLibraryFrom(path);
 }
 
+
+#ifdef AQTION_EXTENSION
+typedef struct extension_func_s
+{
+	char		name[MAX_QPATH];
+	void*		func;
+	struct extension_func_s *n;
+} extension_func_t;
+extension_func_t *g_extension_funcs;
+
+// the do {} while here is a bizarre C-ism to allow for our local variable, probably not the best way to do this
+#define g_addextension(ename, efunc) \
+				do { \
+				extension_func_t *ext = malloc(sizeof(extension_func_t)); \
+				strcpy(ext->name, ename); \
+				ext->func = efunc; \
+				ext->n = g_extension_funcs; \
+				g_extension_funcs = ext; \
+				} while (0);
+
+int(*GE_customizeentityforclient)(edict_t *client, edict_t *ent, entity_state_t *state);
+
+/*
+================
+G_CheckForExtension
+
+Check for (and return) an extension function by name
+================
+*/
+void* G_CheckForExtension(char *text)
+{
+	Com_Printf("G_CheckForExtension for %s\n", text);
+	extension_func_t *ext;
+	for(ext = g_extension_funcs; ext != NULL; ext = ext->n)
+	{
+		if (strcmp(ext->name, text))
+			continue;
+
+		return ext->func;
+	}
+
+	Com_Printf("Extension not found.\n");
+	return NULL;
+}
+
+int G_Ext_Client_GetProtocol(edict_t *ent)
+{
+	if (!ent->client)
+		return 0;
+
+	client_t *client;
+	FOR_EACH_CLIENT(client) {
+		if (client->edict != ent)
+			continue;
+
+		return client->protocol;
+	}
+
+	return 0;
+}
+
+int G_Ext_Client_GetVersion(edict_t *ent)
+{
+	if (!ent->client)
+		return 0;
+
+	client_t *client;
+	FOR_EACH_CLIENT(client) {
+		if (client->edict != ent)
+			continue;
+
+		return client->version;
+	}
+
+	return 0;
+}
+
+
+void G_Ext_Ghud_SendUpdateToClient(edict_t *ent)
+{
+	if (!ent->client)
+		return;
+
+	client_t *client;
+	FOR_EACH_CLIENT(client) {
+		if (client->edict != ent)
+			continue;
+
+		SV_Ghud_SendUpdateToClient(client);
+		return;
+	}
+}
+
+
+void G_Ext_Pmove_AddField(char *name, int size)
+{
+	pmoveext_field_t *fld = &svs.pme.field[svs.pme.fieldcount];
+
+	strcpy(fld->name, name);
+	fld->fieldoffset = svs.pme.offset;
+	fld->size = size;
+
+	svs.pme.offset += size;
+	svs.pme.fieldcount++;
+}
+
+
+void G_InitializeExtensions(void)
+{
+	// client networking info
+	g_addextension("Client_GetVersion", G_Ext_Client_GetVersion);
+	g_addextension("Client_GetProtocol", G_Ext_Client_GetProtocol);
+
+
+	// gamedll hud stuff
+	g_addextension("Ghud_SendUpdates", G_Ext_Ghud_SendUpdateToClient);
+	g_addextension("Ghud_NewElement",	SV_Ghud_NewElement);
+	g_addextension("Ghud_SetFlags",		SV_Ghud_SetFlags);
+	g_addextension("Ghud_UnicastSetFlags", SV_Ghud_UnicastSetFlags);
+	g_addextension("Ghud_SetText",		SV_Ghud_SetText);
+	g_addextension("Ghud_SetInt",		SV_Ghud_SetInt);
+	g_addextension("Ghud_SetPosition",	SV_Ghud_SetPosition);
+	g_addextension("Ghud_SetAnchor",	SV_Ghud_SetAnchor);
+	g_addextension("Ghud_SetColor",		SV_Ghud_SetColor);
+	g_addextension("Ghud_SetSize",		SV_Ghud_SetSize);
+
+
+	// pmove extension stuff
+	g_addextension("Pmove_AddField",	G_Ext_Pmove_AddField);
+}
+
+
+#endif
+
+
 /*
 ===============
 SV_InitGameProgs
@@ -803,6 +938,12 @@ void SV_InitGameProgs(void)
 
     // unload anything we have now
     SV_ShutdownGameProgs();
+
+#ifdef AQTION_EXTENSION
+	SV_Ghud_Clear();
+
+	memset(&svs.pme, 0, sizeof(pmoveExtension_t));
+#endif
 
     // for debugging or `proxy' mods
     if (sys_forcegamelib->string[0])

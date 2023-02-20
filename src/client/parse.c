@@ -309,8 +309,27 @@ static void CL_ParseFrame(int extrabits)
     SHOWNET(2, "%3zu:playerinfo\n", msg_read.readcount - 1);
 
     // parse playerstate
-    bits = MSG_ReadWord();
-    if (cls.serverProtocol > PROTOCOL_VERSION_DEFAULT) {
+	bits = MSG_ReadWord();
+	if (cls.serverProtocol == PROTOCOL_VERSION_AQTION) {
+#ifdef AQTION_EXTENSION
+		MSG_ParseDeltaPlayerstate_Aqtion(from, &frame.ps, &cl.pme, bits, extraflags);
+#else
+		MSG_ParseDeltaPlayerstate_Aqtion(from, &frame.ps, bits, extraflags);
+#endif
+#ifdef USE_DEBUG
+		if (cl_shownet->integer > 2 && (bits || extraflags)) {
+			MSG_ShowDeltaPlayerstateBits_Enhanced(bits, extraflags);
+			Com_LPrintf(PRINT_DEVELOPER, "\n");
+		}
+#endif
+		// parse clientNum
+		if (extraflags & EPS_CLIENTNUM) {
+			frame.clientNum = MSG_ReadByte();
+		}
+		else if (oldframe) {
+			frame.clientNum = oldframe->clientNum;
+		}
+	} else if (cls.serverProtocol > PROTOCOL_VERSION_DEFAULT) {
         MSG_ParseDeltaPlayerstate_Enhanced(from, &frame.ps, bits, extraflags);
 #if USE_DEBUG
         if (cl_shownet->integer > 2 && (bits || extraflags)) {
@@ -397,6 +416,10 @@ static void CL_ParseFrame(int extrabits)
         cl.keyframe = cl.frame;
     }
 #endif
+
+	if (CL_FRAMESYNC) {
+		cl.keypnew = true;
+	}
 
     cls.demo.frames_read++;
 
@@ -624,8 +647,58 @@ static void CL_ParseServerData(void)
         cl.pmp.flyhack = true; // fly hack is unconditionally enabled
         cl.pmp.flyfriction = 4;
     }
-
+	
     if (cinematic) {
+		i = MSG_ReadByte();
+		if (i) {
+			Com_DPrintf("AQTION strafejump hack enabled\n");
+			cl.pmp.strafehack = true;
+		}
+		i = MSG_ReadByte(); //atu QWMod
+		if (i) {
+			Com_DPrintf("AQTION QW mode enabled\n");
+			PmoveEnableQW(&cl.pmp);
+		}
+		cl.esFlags |= MSG_ES_UMASK;
+		cl.esFlags |= MSG_ES_LONGSOLID;
+		cl.esFlags |= MSG_ES_BEAMORIGIN;
+		cl.esFlags |= MSG_ES_SHORTANGLES;
+
+		// waterjump hack
+		i = MSG_ReadByte();
+		if (i) {
+			Com_DPrintf("AQTION waterjump hack enabled\n");
+			cl.pmp.waterhack = true;
+		}
+
+		cl.pmp.speedmult = 2;
+		cl.pmp.flyhack = true; // fly hack is unconditionally enabled
+		cl.pmp.flyfriction = 4;
+
+#ifdef AQTION_EXTENSION
+		if (cls.protocolVersion >= PROTOCOL_VERSION_AQTION_PMOVE)
+		{
+			memset(&cl.pme.field, 0, sizeof(cl.pme.field));
+			cl.pme.offset = 0;
+			cl.pme.fieldcount = MSG_ReadByte();
+			for (int j = 0; j < cl.pme.fieldcount; j++)
+			{
+				MSG_ReadString(cl.pme.field[j].name, sizeof(cl.pme.field[j].name));
+				cl.pme.field[j].size = MSG_ReadByte();
+				cl.pme.field[j].fieldoffset = cl.pme.offset;
+				cl.pme.offset += cl.pme.field[j].size;
+			}
+		}
+
+		if (cls.protocolVersion >= PROTOCOL_VERSION_AQTION_LUAVM)
+		{
+			LUA_InitializeState();
+		}
+#endif
+	}
+
+
+    if (cl.clientNum == -1) {
         SCR_PlayCinematic(levelname);
     } else {
         // seperate the printfs so the server message can have a color

@@ -138,6 +138,8 @@ typedef struct {
 #define CL_KEYLERPFRAC  cl.lerpfrac
 #endif
 
+#define LUA_VM
+
 //
 // the client_state_t structure is wiped completely at every
 // server map change
@@ -254,6 +256,21 @@ typedef struct client_state_s {
     int         frametime;      // variable server frame time
     float       frametime_inv;  // 1/frametime
     int         framediv;       // BASE_FRAMETIME/frametime
+#endif
+
+	qboolean	view_predict;
+	short		view_low;
+	short		view_high;
+
+	bool			keypnew;
+	player_state_t	keyoldpstate;
+	player_state_t	keypstate; 
+
+#ifdef AQTION_EXTENSION
+	pmoveExtension_t pme;
+#ifdef LUA_VM
+	bool			lua_active;
+#endif
 #endif
 
     char        baseconfigstrings[MAX_CONFIGSTRINGS][MAX_QPATH];
@@ -453,6 +470,12 @@ typedef struct client_static_s {
 
         sizebuf_t       message;
     } gtv;
+#endif
+
+#ifdef AQTION_EXTENSION
+#ifdef LUA_VM
+	bool		lua_loaded;
+#endif
 #endif
 } client_static_t;
 
@@ -728,6 +751,15 @@ void CL_InitTEnts(void);
 void CL_PredictAngles(void);
 void CL_PredictMovement(void);
 void CL_CheckPredictionError(void);
+
+
+//
+// lua.c
+//
+void LUA_ClearState(void);
+void LUA_InitializeState(void);
+void LUA_PmoveRun(pmove_t *pm);
+void LUA_PstateRun(player_state_t *ps, pmove_t *pm);
 
 
 //

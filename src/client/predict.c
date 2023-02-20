@@ -175,7 +175,9 @@ void CL_PredictMovement(void)
 {
     unsigned    ack, current, frame;
     pmove_t     pm;
+	player_state_t ps;
     int         step, oldz;
+	bool		pstate_run;
 
     if (cls.state != ca_active) {
         return;
@@ -190,6 +192,9 @@ void CL_PredictMovement(void)
     }
 
     if (!cl_predict->integer || (cl.frame.ps.pmove.pm_flags & PMF_NO_PREDICTION)) {
+		// use key frames instead of predicted frames
+		cl.keyoldpstate = *CL_OLDKEYPS;
+		cl.keypstate = *CL_KEYPS;
         // just set angles
         CL_PredictAngles();
         return;
@@ -197,6 +202,8 @@ void CL_PredictMovement(void)
 
     ack = cl.history[cls.netchan->incoming_acknowledged & CMD_MASK].cmdNumber;
     current = cl.cmdNumber;
+
+	pstate_run = false;
 
     // if we are too far out of date, just freeze
     if (current - ack > CMD_BACKUP - 1) {
@@ -215,6 +222,7 @@ void CL_PredictMovement(void)
     pm.pointcontents = CL_PointContents;
 
     pm.s = cl.frame.ps.pmove;
+	ps = cl.frame.ps;
 #if USE_SMOOTH_DELTA_ANGLES
     VectorCopy(cl.delta_angles, pm.s.delta_angles);
 #endif
@@ -222,7 +230,17 @@ void CL_PredictMovement(void)
     // run frames
     while (++ack <= current) {
         pm.cmd = cl.cmds[ack & CMD_MASK];
+#ifdef LUA_VM
+		LUA_PmoveRun(&pm);
+#endif
         Pmove(&pm, &cl.pmp);
+
+#ifdef LUA_VM
+		ps.pmove = pm.s;
+		LUA_PstateRun(&ps, &pm);
+		pstate_run = true;
+#endif
+
 
         // save for debug checking
         VectorCopy(pm.s.origin, cl.predicted_origins[ack & CMD_MASK]);
@@ -234,6 +252,9 @@ void CL_PredictMovement(void)
         pm.cmd.forwardmove = cl.localmove[0];
         pm.cmd.sidemove = cl.localmove[1];
         pm.cmd.upmove = cl.localmove[2];
+#ifdef LUA_VM
+		LUA_PmoveRun(&pm);
+#endif
         Pmove(&pm, &cl.pmp);
         frame = current;
 
@@ -242,6 +263,15 @@ void CL_PredictMovement(void)
     } else {
         frame = current - 1;
     }
+
+#ifdef LUA_VM
+	if (!pstate_run)
+	{
+		ps.pmove = pm.s;
+		LUA_PstateRun(&ps, &pm);
+		pstate_run = true;
+	}
+#endif
 
     if (pm.s.pm_type != PM_SPECTATOR && (pm.s.pm_flags & PMF_ON_GROUND)) {
         oldz = cl.predicted_origins[cl.predicted_step_frame & CMD_MASK][2];
@@ -256,6 +286,33 @@ void CL_PredictMovement(void)
     if (cl.predicted_step_frame < frame) {
         cl.predicted_step_frame = frame;
     }
+
+#ifdef LUA_VM
+	if (!cl.lua_active)
+	{
+#endif
+		if (cl_predict_crouch->integer == 2 || (cl_predict_crouch->integer && cl.view_predict))
+		{
+			if (pm.s.pm_flags & PMF_DUCKED)
+				ps.viewoffset[2] = cl.view_low;
+			else
+				ps.viewoffset[2] = cl.view_high;
+		}
+#ifdef LUA_VM
+	}
+#endif
+
+	ps.pmove = pm.s;
+
+//#if USE_FPS
+	if (cl.keypnew)
+	{
+		cl.keyoldpstate = cl.keypstate;
+		cl.keypstate = ps;
+
+		cl.keypnew = false;
+	}
+//#endif
 
     // copy results out for rendering
     VectorScale(pm.s.origin, 0.125f, cl.predicted_origin);

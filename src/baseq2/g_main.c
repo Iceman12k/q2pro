@@ -225,6 +225,20 @@ q_exported game_export_t *GetGameAPI(game_import_t *import)
 
     globals.edict_size = sizeof(edict_t);
 
+#ifdef AQTION_EXTENSION
+	G_InitExtEntrypoints();
+	globals.FetchGameExtension = G_FetchGameExtension;
+
+	engine_Client_GetProtocol = gi.CheckForExtension("Client_GetProtocol");
+	engine_Client_GetVersion = gi.CheckForExtension("Client_GetVersion");
+
+	engine_Pmove_AddField = gi.CheckForExtension("Pmove_AddField");
+
+	G_InitPmoveFields();
+
+	lua_init();
+#endif
+
     return &globals;
 }
 

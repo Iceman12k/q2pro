@@ -51,6 +51,7 @@ client_src = [
   'src/client/screen.c',
   'src/client/tent.c',
   'src/client/view.c',
+  'src/client/lua.c',
   'src/client/sound/main.c',
   'src/client/sound/mem.c',
   'src/server/commands.c',
@@ -125,6 +126,8 @@ game_src = [
   'src/baseq2/g_turret.c',
   'src/baseq2/g_utils.c',
   'src/baseq2/g_weapon.c',
+  'src/baseq2/g_ext.c',
+  'src/baseq2/g_lua.c',
   'src/baseq2/m_actor.c',
   'src/baseq2/m_berserk.c',
   'src/baseq2/m_boss2.c',
@@ -254,6 +257,12 @@ jpeg = dependency('libjpeg',
   default_options: fallback_opt,
 )
 
+lua = dependency('liblua',
+  required:        get_option('liblua'),
+  allow_fallback:  win32,
+  default_options: fallback_opt,
+)
+
 png = dependency('libpng',
   required:        get_option('libpng'),
   allow_fallback:  win32,
@@ -263,6 +272,7 @@ png = dependency('libpng',
 config.set10('USE_ZLIB', zlib.found())
 config.set10('USE_JPG', jpeg.found())
 config.set10('USE_PNG', png.found())
+config.set10('LUA_VM', lua.found())
 
 curl = dependency('libcurl',
   version:         '>= 7.32.0',
@@ -301,9 +311,9 @@ if openal.found()
 endif
 
 common_deps = [zlib]
-client_deps = [jpeg, png, curl, sdl2, openal]
+client_deps = [jpeg, png, curl, sdl2, openal, lua]
 server_deps = []
-game_deps = []
+game_deps = [lua]
 
 if win32
   subdir('src/windows')

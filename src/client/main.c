@@ -693,6 +693,7 @@ void CL_ClearState(void)
     CL_ClearLightStyles();
     CL_ClearTEnts();
     LOC_FreeLocations();
+	LUA_ClearState();
 
     // wipe the entire cl structure
     BSP_Free(cl.bsp);
@@ -3328,6 +3329,10 @@ void CL_Init(void)
     if (inflateInit2(&cls.z, -MAX_WBITS) != Z_OK) {
         Com_Error(ERR_FATAL, "%s: inflateInit2() failed", __func__);
     }
+#endif
+
+#ifdef LUA_VM
+	LUA_LoadLibrary();
 #endif
 
     CL_LoadDownloadIgnores();

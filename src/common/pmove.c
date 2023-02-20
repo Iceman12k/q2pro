@@ -522,8 +522,15 @@ static void PM_AirMove(void)
         PM_StepSlideMove();
     } else if (pm->groundentity) {
         // walking on ground
-        pml.velocity[2] = 0; //!!! this is before the accel
-        PM_Accelerate(wishdir, wishspeed, pm_accelerate);
+#ifdef AQTION_EXTENSION
+		if (!(pm->s.pm_aq2_flags & PMF_AQ2_NOACCEL))
+		{
+#endif
+			pml.velocity[2] = 0; //!!! this is before the accel
+			PM_Accelerate(wishdir, wishspeed, pm_accelerate);
+#ifdef AQTION_EXTENSION
+		}
+#endif
 
 // PGM  -- fix for negative trigger_gravity fields
 //      pml.velocity[2] = 0;
@@ -538,10 +545,17 @@ static void PM_AirMove(void)
         PM_StepSlideMove();
     } else {
         // not on ground, so little effect on velocity
-        if (pmp->airaccelerate)
-            PM_AirAccelerate(wishdir, wishspeed, pm_accelerate);
-        else
-            PM_Accelerate(wishdir, wishspeed, 1);
+#ifdef AQTION_EXTENSION
+		if (!(pm->s.pm_aq2_flags & PMF_AQ2_NOACCEL))
+		{
+#endif
+			if (pmp->airaccelerate)
+				PM_AirAccelerate(wishdir, wishspeed, pm_accelerate);
+			else
+				PM_Accelerate(wishdir, wishspeed, 1);
+#ifdef AQTION_EXTENSION
+		}
+#endif
         // add gravity
         pml.velocity[2] -= pm->s.gravity * pml.frametime;
         PM_StepSlideMove();
@@ -1098,6 +1112,10 @@ void Pmove(pmove_t *pmove, pmoveParams_t *params)
             pm->s.pm_time -= msec;
     }
 
+#ifdef AQTION_EXTENSION
+	if (!((pm->s.pm_aq2_flags & PMF_AQ2_NOMOVE) == PMF_AQ2_NOMOVE))
+	{
+#endif
     if (pm->s.pm_flags & PMF_TIME_TELEPORT) {
         // teleport pause stays exactly in place
     } else if (pm->s.pm_flags & PMF_TIME_WATERJUMP) {
@@ -1111,25 +1129,34 @@ void Pmove(pmove_t *pmove, pmoveParams_t *params)
 
         PM_StepSlideMove();
     } else {
-        PM_CheckJump();
+#ifdef AQTION_EXTENSION
+		if (!(pm->s.pm_aq2_flags & PMF_AQ2_NOJUMP))
+#endif
+			PM_CheckJump();
 
-        PM_Friction();
 
-        if (pm->waterlevel >= 2)
-            PM_WaterMove();
-        else {
-            vec3_t  angles;
+		PM_Friction();
 
-            VectorCopy(pm->viewangles, angles);
-            if (angles[PITCH] > 180)
-                angles[PITCH] = angles[PITCH] - 360;
-            angles[PITCH] /= 3;
+		if (pm->waterlevel >= 2)
+			PM_WaterMove();
+		else {
+			vec3_t  angles;
 
-            AngleVectors(angles, pml.forward, pml.right, pml.up);
+			VectorCopy(pm->viewangles, angles);
+			if (angles[PITCH] > 180)
+				angles[PITCH] = angles[PITCH] - 360;
+			angles[PITCH] /= 3;
 
-            PM_AirMove();
-        }
+			AngleVectors(angles, pml.forward, pml.right, pml.up);
+
+			PM_AirMove();
+		}
     }
+#ifdef AQTION_EXTENSION
+	}
+	else
+		PM_StepSlideMove();
+#endif
 
     // set groundentity, watertype, and waterlevel for final spot
     PM_CategorizePosition();

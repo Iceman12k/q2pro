@@ -492,6 +492,11 @@ typedef struct server_static_s {
     ratelimit_t     ratelimit_rcon;
 
     challenge_t     challenges[MAX_CHALLENGES]; // to prevent invalid IPs from connecting
+
+#ifdef AQTION_EXTENSION
+	ghud_element_t ghud[MAX_GHUDS];
+	pmoveExtension_t pme;
+#endif
 } server_static_t;
 
 //=============================================================================

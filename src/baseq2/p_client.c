@@ -1507,6 +1507,35 @@ void PrintPmove(pmove_t *pm)
     Com_Printf("sv %3i:%i %i\n", pm->cmd.impulse, c1, c2);
 }
 
+int wep_to_slot(gitem_t *wep)
+{
+	if (wep == NULL)
+		return -1;
+	if (!strcmp(wep->classname, "weapon_blaster"))
+		return 0;
+	else if (!strcmp(wep->classname, "weapon_shotgun"))
+		return 1;
+	else if (!strcmp(wep->classname, "weapon_supershotgun"))
+		return 2;
+	else if (!strcmp(wep->classname, "weapon_machinegun"))
+		return 3;
+	else if (!strcmp(wep->classname, "weapon_chaingun"))
+		return 4;
+	else if (!strcmp(wep->classname, "ammo_grenades"))
+		return 5;
+	else if (!strcmp(wep->classname, "weapon_grenadelauncher"))
+		return 6;
+	else if (!strcmp(wep->classname, "weapon_rocketlauncher"))
+		return 7;
+	else if (!strcmp(wep->classname, "weapon_hyperblaster"))
+		return 8;
+	else if (!strcmp(wep->classname, "weapon_railgun"))
+		return 9;
+	else if (!strcmp(wep->classname, "weapon_bfg"))
+		return 10;
+	return -1;
+}
+
 /*
 ==============
 ClientThink
@@ -1575,11 +1604,22 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         pm.pointcontents = gi.pointcontents;
 
         // perform a pmove
+#ifdef AQTION_EXTENSION
+		pmoveExt(pm.s)->weapon = wep_to_slot(client->pers.weapon);
+		pmoveExt(pm.s)->newweapon = wep_to_slot(client->newweapon);
+		pmoveExt(pm.s)->weaponstate = client->weaponstate;
+
+		lua_pmoverun(&pm);
+#endif
         gi.Pmove(&pm);
 
         // save results of pmove
         client->ps.pmove = pm.s;
         client->old_pmove = pm.s;
+
+#ifdef AQTION_EXTENSION
+		lua_psrun(&client->ps, &pm);
+#endif
 
         for (i = 0 ; i < 3 ; i++) {
             ent->s.origin[i] = SHORT2COORD(pm.s.origin[i]);

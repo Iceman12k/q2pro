@@ -36,7 +36,7 @@ static void build_gamestate(void)
     memset(cls.gtv.entities, 0, sizeof(cls.gtv.entities));
 
     // set base player states
-    MSG_PackPlayer(&cls.gtv.ps, &cl.frame.ps);
+    MSG_PackPlayer(&cls.gtv.ps, &cl.frame.ps, NULL);
 
     // set base entity states
     for (i = 1; i < MAX_EDICTS; i++) {
@@ -126,7 +126,7 @@ void CL_GTV_EmitFrame(void)
     MSG_WriteByte(0);
 
     // send player state
-    MSG_PackPlayer(&newps, &cl.frame.ps);
+    MSG_PackPlayer(&newps, &cl.frame.ps, NULL);
 
     MSG_WriteDeltaPlayerstate_Packet(&cls.gtv.ps, &newps,
                                      cl.clientNum, MSG_PS_FORCE);

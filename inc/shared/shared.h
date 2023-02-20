@@ -748,6 +748,15 @@ typedef enum {
 #define PMF_NO_PREDICTION   64  // temporarily disables prediction (used for grappling hook)
 #define PMF_TELEPORT_BIT    128 // used by q2pro
 
+
+#ifdef AQTION_EXTENSION
+// pmove->pm_aq2_flags
+#define PMF_AQ2_LIMP		0x01 // used to predict limping
+#define PMF_AQ2_NOJUMP		0x02 // no jumping
+#define PMF_AQ2_NOACCEL		0x04 // no acceleration
+#define PMF_AQ2_NOMOVE		0x06 // no move
+#endif
+
 // this structure needs to be communicated bit-accurate
 // from the server to the client to guarantee that
 // prediction stays in sync, so no floats are used.
@@ -763,8 +772,28 @@ typedef struct {
     short       gravity;
     short       delta_angles[3];    // add to command angles to get view direction
                                     // changed by spawns, rotating objects, and teleporters
+#ifdef AQTION_EXTENSION
+	short       pm_aq2_flags;   // limping, bandaging, etc
+	unsigned short pm_timestamp; // timestamp, resets every 60 seconds
+	byte		pm_aq2_leghits;		 // number of leg hits
+
+	byte		efields[128];		// extended fields, created at runtime by the game logic
+#endif
 } pmove_state_t;
 
+#ifdef AQTION_EXTENSION
+typedef struct {
+	char name[16];
+	int fieldoffset;
+	int size;
+} pmoveext_field_t;
+
+typedef struct {
+	short				offset;
+	byte				fieldcount;
+	pmoveext_field_t	field[32];
+} pmoveExtension_t;
+#endif
 
 //
 // button bits

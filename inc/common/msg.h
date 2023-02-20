@@ -65,7 +65,8 @@ typedef enum {
     MSG_PS_IGNORE_DELTAANGLES   = (1 << 4),
     MSG_PS_IGNORE_PREDICTION    = (1 << 5),      // mutually exclusive with IGNORE_VIEWANGLES
     MSG_PS_FORCE                = (1 << 7),
-    MSG_PS_REMOVE               = (1 << 8)
+    MSG_PS_REMOVE               = (1 << 8),
+	MSG_PS_IGNOREDYNAMIC		= (1 << 9)
 } msgPsFlags_t;
 
 typedef enum {
@@ -107,9 +108,18 @@ int     MSG_WriteDeltaUsercmd_Enhanced(const usercmd_t *from, const usercmd_t *c
 void    MSG_WriteDir(const vec3_t vector);
 void    MSG_PackEntity(entity_packed_t *out, const entity_state_t *in, bool short_angles);
 void    MSG_WriteDeltaEntity(const entity_packed_t *from, const entity_packed_t *to, msgEsFlags_t flags);
+#ifdef AQTION_EXTENSION
+void    MSG_PackPlayer(player_packed_t *out, const player_state_t *in, pmoveExtension_t *pme);
+#else
 void    MSG_PackPlayer(player_packed_t *out, const player_state_t *in);
+#endif
 void    MSG_WriteDeltaPlayerstate_Default(const player_packed_t *from, const player_packed_t *to);
 int     MSG_WriteDeltaPlayerstate_Enhanced(const player_packed_t *from, player_packed_t *to, msgPsFlags_t flags);
+#ifdef AQTION_EXTENSION
+int     MSG_WriteDeltaPlayerstate_Aqtion(const player_packed_t *from, player_packed_t *to, pmoveExtension_t *pme, msgPsFlags_t flags);
+#else
+int     MSG_WriteDeltaPlayerstate_Aqtion(const player_packed_t *from, player_packed_t *to, msgPsFlags_t flags);
+#endif
 void    MSG_WriteDeltaPlayerstate_Packet(const player_packed_t *from, const player_packed_t *to, int number, msgPsFlags_t flags);
 
 static inline void *MSG_WriteData(const void *data, size_t len)
@@ -145,6 +155,11 @@ void    MSG_ParseDeltaEntity(const entity_state_t *from, entity_state_t *to, int
 #if USE_CLIENT
 void    MSG_ParseDeltaPlayerstate_Default(const player_state_t *from, player_state_t *to, int flags);
 void    MSG_ParseDeltaPlayerstate_Enhanced(const player_state_t *from, player_state_t *to, int flags, int extraflags);
+#ifdef AQTION_EXTENSION
+void    MSG_ParseDeltaPlayerstate_Aqtion(const player_state_t *from, player_state_t *to, pmoveExtension_t *pme, int flags, int extraflags);
+#else
+void    MSG_ParseDeltaPlayerstate_Aqtion(const player_state_t *from, player_state_t *to, int flags, int extraflags);
+#endif
 #endif
 void    MSG_ParseDeltaPlayerstate_Packet(const player_state_t *from, player_state_t *to, int flags);
 

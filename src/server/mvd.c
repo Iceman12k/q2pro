@@ -573,7 +573,7 @@ static void build_gamestate(void)
             continue;
         }
 
-        MSG_PackPlayer(&mvd.players[i], &ent->client->ps);
+        MSG_PackPlayer(&mvd.players[i], &ent->client->ps, NULL);
         PPS_INUSE(&mvd.players[i]) = true;
     }
 
@@ -747,7 +747,7 @@ static void emit_frame(void)
         }
 
         // quantize
-        MSG_PackPlayer(&newps, &ent->client->ps);
+        MSG_PackPlayer(&newps, &ent->client->ps, NULL);
 
         if (PPS_INUSE(oldps)) {
             // delta update from old position

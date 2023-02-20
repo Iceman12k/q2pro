@@ -49,6 +49,17 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define PROTOCOL_VERSION_MVD_MINIMUM            2009    // r168
 #define PROTOCOL_VERSION_MVD_CURRENT            2010    // r177
 
+#define PROTOCOL_VERSION_AQTION_MINIMUM			3011	//  minimum is equivalent to PROTOCOL_VERSION_Q2PRO_ZLIB_DOWNLOADS
+#ifndef AQTION_EXTENSION
+#define PROTOCOL_VERSION_AQTION_CURRENT         3011
+#else
+#define PROTOCOL_VERSION_AQTION_GHUD			3012	// game dll defined hud elements
+#define PROTOCOL_VERSION_AQTION_GHUD2			3013	// ghud ver 2
+#define PROTOCOL_VERSION_AQTION_PMOVE			3014	// dynamic extended pmove fields
+#define PROTOCOL_VERSION_AQTION_LUAVM			3015	// client side lua vm support
+#define PROTOCOL_VERSION_AQTION_CURRENT         3015
+#endif
+
 #define R1Q2_SUPPORTED(x) \
     ((x) >= PROTOCOL_VERSION_R1Q2_MINIMUM && \
      (x) <= PROTOCOL_VERSION_R1Q2_CURRENT)
@@ -233,6 +244,13 @@ typedef enum {
 
 #define EPS_BITS            7
 #define EPS_MASK            ((1<<EPS_BITS)-1)
+
+// aqtion protocol specific flags
+#define AQPS_PMFLAGS		(1<<0)
+#define AQPS_TIMESTAMP		(1<<1)
+#define AQPS_LEGHITS		(1<<2)
+#define AQPS_DYNAMIC		(1<<6)
+#define AQPS_MOREBITS		(1<<7)
 
 //==============================================
 

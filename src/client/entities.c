@@ -245,6 +245,11 @@ static void set_active_state(void)
     cl.oldkeyframe.ps = cl.keyframe.ps;
 #endif
 
+	// init predicted player states
+	cl.keypstate = cl.frame.ps;
+	cl.keyoldpstate = cl.keypstate;
+	cl.keypnew = true;
+
     cl.frameflags = 0;
 
     if (cls.netchan) {
@@ -926,8 +931,8 @@ static void CL_AddViewWeapon(void)
     }
 
     // find states to interpolate between
-    ps = CL_KEYPS;
-    ops = CL_OLDKEYPS;
+	ps = &cl.keypstate;
+	ops = &cl.keyoldpstate;
 
     memset(&gun, 0, sizeof(gun));
 
@@ -998,9 +1003,8 @@ static void CL_SetupFirstPersonView(void)
 
     // add kick angles
     if (cl_kickangles->integer) {
-        ps = CL_KEYPS;
-        ops = CL_OLDKEYPS;
-
+		ps = &cl.keypstate;
+		ops = &cl.keyoldpstate;
         lerp = CL_KEYLERPFRAC;
 
         LerpAngles(ops->kick_angles, ps->kick_angles, lerp, kickangles);
@@ -1196,12 +1200,13 @@ void CL_CalcViewValues(void)
     // don't interpolate blend color
     Vector4Copy(ps->blend, cl.refdef.blend);
 
+	ps = &cl.keypstate;
+	ops = &cl.keyoldpstate;
 #if USE_FPS
-    ps = &cl.keyframe.ps;
-    ops = &cl.oldkeyframe.ps;
-
     lerp = cl.keylerpfrac;
 #endif
+
+	LerpVector(ops->viewoffset, ps->viewoffset, lerp, viewoffset);
 
     // interpolate field of view
     cl.fov_x = lerp_client_fov(ops->fov, ps->fov, lerp);
