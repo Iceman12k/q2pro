@@ -10,3 +10,5 @@
 /subprojects/*/
 /tags
 /TAGS
+/.vs/*
+/Debug/*
