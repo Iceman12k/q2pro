@@ -395,8 +395,8 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
         te_sparks = TE_SPARKS;
 
 // bonus damage for suprising a monster
-    if (!(dflags & DAMAGE_RADIUS) && (targ->svflags & SVF_MONSTER) && (attacker->client) && (!targ->enemy) && (targ->health > 0))
-        damage *= 2;
+	if (!(dflags & DAMAGE_RADIUS) && (targ->svflags & SVF_MONSTER) && (attacker->client) && (!targ->enemy) && (targ->health > 0))
+		damage *= 2;
 
     if (targ->flags & FL_NO_KNOCKBACK)
         knockback = 0;
@@ -485,6 +485,7 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
     } else if (client) {
         if (!(targ->flags & FL_GODMODE) && (take))
             targ->pain(targ, attacker, knockback, take);
+		client->hunt_regen_framenum = level.framenum + 50;
     } else if (take) {
         if (targ->pain)
             targ->pain(targ, attacker, knockback, take);

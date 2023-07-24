@@ -623,9 +623,13 @@ void SP_monster_chick(edict_t *self)
     self->health = 175;
     self->gib_health = -70;
     self->mass = 200;
+	self->hunt_hitboxstyle = 1;
 
     self->pain = chick_pain;
     self->die = chick_die;
+
+	self->hunt_damagemults[HDAMAGETYPE_SHARP] = 1.6;
+	self->hunt_damagemults[HDAMAGETYPE_RENDING] = 1.4;
 
     self->monsterinfo.stand = chick_stand;
     self->monsterinfo.walk = chick_walk;

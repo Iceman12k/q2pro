@@ -360,6 +360,20 @@ void Cmd_Use_f(edict_t *ent)
     gitem_t     *it;
     char        *s;
 
+	index = atoi(gi.argv(1));
+	if (index >= 1 && index <= 10)
+	{
+		gclient_t *client = ent->client;
+		
+		if (client->hunt_invslots[index - 1].def)
+		{
+			client->hunt_invwanted = (index);
+		}
+
+		client->hunt_inventory_hide = client->hunt_client_time + 3;
+		return;
+	}
+
     s = gi.args();
     it = FindItem(s);
     if (!it) {
@@ -923,6 +937,65 @@ void ClientCommand(edict_t *ent)
         Cmd_Wave_f(ent);
     else if (Q_stricmp(cmd, "playerlist") == 0)
         Cmd_PlayerList_f(ent);
+	else if (Q_stricmp(cmd, "reload") == 0)
+	{
+		ent->client->hunt_weapon_flags |= HUNT_WEPFLAGS_RELOAD;
+	}
+	else if (Q_stricmp(cmd, "adsin") == 0)
+	{
+		ent->client->hunt_weapon_flags &= ~HUNT_WEPFLAGS_RELOAD;
+		ent->client->hunt_weapon_flags &= ~HUNT_WEPFLAGS_ADSTOGGLE;
+		ent->client->hunt_weapon_flags |= HUNT_WEPFLAGS_ADSWANTED;
+
+		/*
+		gi.WriteByte(svc_configstring);
+		gi.WriteShort(CS_LIGHTS + 0);
+		gi.WriteString("a");
+		gi.unicast(ent, true);
+		*/
+	}
+	else if (Q_stricmp(cmd, "adsout") == 0)
+	{
+		ent->client->hunt_weapon_flags &= ~HUNT_WEPFLAGS_ADSTOGGLE;
+		ent->client->hunt_weapon_flags &= ~HUNT_WEPFLAGS_ADSWANTED;
+	}
+	else if (Q_stricmp(cmd, "ads") == 0)
+	{
+		ent->client->hunt_weapon_flags |= HUNT_WEPFLAGS_ADSTOGGLE;
+		if (ent->client->hunt_weapon_flags & HUNT_WEPFLAGS_ADSWANTED)
+			ent->client->hunt_weapon_flags &= ~HUNT_WEPFLAGS_ADSWANTED;
+		else
+		{
+			ent->client->hunt_weapon_flags |= HUNT_WEPFLAGS_ADSWANTED;
+			ent->client->hunt_weapon_flags &= ~HUNT_WEPFLAGS_RELOAD;
+		}
+	}
+	else if (Q_stricmp(cmd, "darksightin") == 0)
+	{
+		ent->client->hunt_weapon_flags &= ~HUNT_WEPFLAGS_RELOAD;
+		ent->client->hunt_weapon_flags |= HUNT_WEPFLAGS_DSWANTED;
+
+		/*
+		gi.WriteByte(svc_configstring);
+		gi.WriteShort(CS_LIGHTS + 0);
+		gi.WriteString("a");
+		gi.unicast(ent, true);
+		*/
+	}
+	else if (Q_stricmp(cmd, "darksightout") == 0)
+	{
+		ent->client->hunt_weapon_flags &= ~HUNT_WEPFLAGS_DSWANTED;
+	}
+	else if (Q_stricmp(cmd, "darksight") == 0)
+	{
+		if (ent->client->hunt_weapon_flags & HUNT_WEPFLAGS_DSWANTED)
+			ent->client->hunt_weapon_flags &= ~HUNT_WEPFLAGS_DSWANTED;
+		else
+		{
+			ent->client->hunt_weapon_flags |= HUNT_WEPFLAGS_DSWANTED;
+			ent->client->hunt_weapon_flags &= ~HUNT_WEPFLAGS_RELOAD;
+		}
+	}
     else    // anything that doesn't match a command will be a chat
         Cmd_Say_f(ent, false, true);
 }

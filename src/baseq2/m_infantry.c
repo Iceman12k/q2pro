@@ -554,6 +554,8 @@ void SP_monster_infantry(edict_t *self)
     self->health = 100;
     self->gib_health = -40;
     self->mass = 200;
+	self->hunt_hitboxstyle = 1;
+	self->hunt_damagemults[HDAMAGETYPE_BULLET] = 0.8;
 
     self->pain = infantry_pain;
     self->die = infantry_die;

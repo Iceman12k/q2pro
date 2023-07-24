@@ -583,8 +583,8 @@ void InitClientPersistant(gclient_t *client)
 
     client->pers.weapon = item;
 
-    client->pers.health         = 100;
-    client->pers.max_health     = 100;
+    client->pers.health         = 150;
+    client->pers.max_health     = 150;
 
     client->pers.max_bullets    = 200;
     client->pers.max_shells     = 100;
@@ -1148,14 +1148,15 @@ void PutClientInServer(edict_t *ent)
     memset(&ent->client->ps, 0, sizeof(client->ps));
 
     if (deathmatch->value && ((int)dmflags->value & DF_FIXED_FOV)) {
-        client->ps.fov = 90;
+		client->pers.desired_fov = 90;
     } else {
-        client->ps.fov = atoi(Info_ValueForKey(client->pers.userinfo, "fov"));
-        if (client->ps.fov < 1)
-            client->ps.fov = 90;
-        else if (client->ps.fov > 160)
-            client->ps.fov = 160;
+		client->pers.desired_fov = atoi(Info_ValueForKey(client->pers.userinfo, "fov"));
+        if (client->pers.desired_fov < 1)
+			client->pers.desired_fov = 90;
+        else if (client->pers.desired_fov > 160)
+			client->pers.desired_fov = 160;
     }
+	client->ps.fov = client->pers.desired_fov;
 
     client->ps.gunindex = gi.modelindex(client->pers.weapon->view_model);
 
@@ -1226,6 +1227,40 @@ void PutClientInServer(edict_t *ent)
     // force the current weapon up
     client->newweapon = client->pers.weapon;
     ChangeWeapon(ent);
+
+	// Reki: Hunt healthbars
+	while (client->hunt_healthbars)
+	{
+		huntbar_t *bar = client->hunt_healthbars;
+		client->hunt_healthbars = bar->next;
+		gi.TagFree(bar);
+	}
+
+	Hunt_HealthBar_Alloc(ent, 1);
+#if 1
+	Hunt_HealthBar_Alloc(ent, 0);
+	Hunt_HealthBar_Alloc(ent, 1);
+	Hunt_HealthBar_Alloc(ent, 0);
+#else
+	Hunt_HealthBar_Alloc(ent, 1);
+	Hunt_HealthBar_Alloc(ent, 1);
+#endif
+
+	client->hunt_invslots[0].def = &w_m1garand;
+	client->hunt_invslots[1].def = &w_peacemaker;
+	client->hunt_invslots[2].def = &t_dusters;
+	client->hunt_invslots[3].def = &t_knife;
+	Hunt_SetWeapon(ent, &client->hunt_invslots[0]);
+	client->hunt_invammo[client->hunt_invslots[0].def->ammotype] = 12;
+	client->hunt_invammo[client->hunt_invslots[1].def->ammotype] = 12;
+	client->hunt_invslots[0].ammo = client->hunt_invslots[0].def->maxammo;
+	client->hunt_invslots[1].ammo = client->hunt_invslots[1].def->maxammo;
+	client->hunt_inventory_hide = client->hunt_client_time + 3;
+	ent->hunt_hitboxstyle = 1;
+
+	gi.WriteByte(svc_stufftext);
+	gi.WriteString("crosshair 0\n");
+	gi.unicast(ent, true);
 }
 
 /*
@@ -1594,6 +1629,9 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
             //      gi.dprintf ("pmove changed!\n");
         }
 
+		if (client->hunt_weapon_flags & HUNT_WEPFLAGS_DS)
+			ucmd->forwardmove = min(ucmd->forwardmove, 300);
+
         pm.cmd = *ucmd;
 
         pm.trace = PM_trace;    // adds default parms
@@ -1657,6 +1695,13 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
             other->touch(other, ent, NULL, NULL);
         }
 
+		client->hunt_client_time += (float)ucmd->msec / 1000;
+
+		Hunt_Interact_Simulate(ent, ucmd);
+		Hunt_WeaponPhysics(ent, ucmd);
+
+		client->lastcmd = *ucmd;
+		client->lastpmflags = client->ps.pmove.pm_flags;
     }
 
     client->oldbuttons = client->buttons;
@@ -1668,6 +1713,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
     ent->light_level = ucmd->lightlevel;
 
     // fire weapon from final position if needed
+	/*
     if (client->latched_buttons & BUTTON_ATTACK) {
         if (client->resp.spectator) {
 
@@ -1684,6 +1730,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
             Think_Weapon(ent);
         }
     }
+	*/
 
     if (client->resp.spectator) {
         if (ucmd->upmove >= 10) {
@@ -1732,11 +1779,15 @@ void ClientBeginServerFrame(edict_t *ent)
         return;
     }
 
+	Hunt_Healthbar_Simulate(ent);
+
     // run weapon animations if it hasn't been done by a ucmd_t
+	/*
     if (!client->weapon_thunk && !client->resp.spectator)
         Think_Weapon(ent);
     else
         client->weapon_thunk = false;
+	*/
 
     if (ent->deadflag) {
         // wait for any button just going down

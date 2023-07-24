@@ -581,6 +581,14 @@ void SpawnEntities(const char *mapname, const char *entities, const char *spawnp
 
     SaveClientData();
 
+	// Reki (May 20 2023): Cleanup old animation events
+#define H_WEAPON(id, wmodel, hmodel, icon) \
+	for(int j = 0; j < WEP_ANIM_MAX; j++) \
+		id.animations[j].events = NULL;
+	WEAPON_LIST
+#undef H_WEAPON
+	//
+
     gi.FreeTags(TAG_LEVEL);
 
     memset(&level, 0, sizeof(level));
@@ -927,6 +935,46 @@ void SP_worldspawn(edict_t *ent)
     gi.modelindex("models/objects/gibs/chest/tris.md2");
     gi.modelindex("models/objects/gibs/skull/tris.md2");
     gi.modelindex("models/objects/gibs/head2/tris.md2");
+
+
+
+	Hunt_WeaponInit();
+
+	gi.modelindex("models/weapons/v_fists/tris.md2");
+	gi.imageindex("bar_0_25");
+	gi.imageindex("bar_0_20");
+	gi.imageindex("bar_0_15");
+	gi.imageindex("bar_0_10");
+	gi.imageindex("bar_0_05");
+	gi.imageindex("bar_0_00");
+	gi.imageindex("bar_1_50");
+	gi.imageindex("bar_1_45");
+	gi.imageindex("bar_1_40");
+	gi.imageindex("bar_1_35");
+	gi.imageindex("bar_1_30");
+	gi.imageindex("bar_1_25");
+	gi.imageindex("bar_1_20");
+	gi.imageindex("bar_1_15");
+	gi.imageindex("bar_1_10");
+	gi.imageindex("bar_1_05");
+	gi.imageindex("bar_1_00");
+	gi.imageindex("pbar_0_25");
+	gi.imageindex("pbar_0_20");
+	gi.imageindex("pbar_0_15");
+	gi.imageindex("pbar_0_10");
+	gi.imageindex("pbar_0_05");
+	gi.imageindex("pbar_0_00");
+	gi.imageindex("pbar_1_50");
+	gi.imageindex("pbar_1_45");
+	gi.imageindex("pbar_1_40");
+	gi.imageindex("pbar_1_35");
+	gi.imageindex("pbar_1_30");
+	gi.imageindex("pbar_1_25");
+	gi.imageindex("pbar_1_20");
+	gi.imageindex("pbar_1_15");
+	gi.imageindex("pbar_1_10");
+	gi.imageindex("pbar_1_05");
+	gi.imageindex("pbar_1_00");
 
 //
 // Setup light animation tables. 'a' is total darkness, 'z' is doublebright.

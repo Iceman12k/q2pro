@@ -38,6 +38,8 @@ typedef struct {
 
     short       previous_origin[3];
     bool        ladder;
+
+	float		maxspeed;
 } pml_t;
 
 static pmove_t      *pm;
@@ -48,9 +50,11 @@ static pmoveParams_t    *pmp;
 // movement parameters
 static const float  pm_stopspeed = 100;
 static const float  pm_duckspeed = 100;
-static const float  pm_accelerate = 10;
+static const float  pm_sprintspeed = 300;
+static const float  pm_accelerate = 12;
 static const float  pm_wateraccelerate = 10;
 static const float  pm_waterspeed = 400;
+
 
 /*
   walking up a step should kill some velocity
@@ -315,6 +319,13 @@ static void PM_Accelerate(const vec3_t wishdir, float wishspeed, float accel)
     int         i;
     float       addspeed, accelspeed, currentspeed;
 
+	vec3_t h_vel;
+	float start_spd;
+	h_vel[0] = pml.velocity[0];
+	h_vel[1] = pml.velocity[1];
+	h_vel[2] = 0;
+	start_spd = VectorLength(h_vel);
+
     currentspeed = DotProduct(pml.velocity, wishdir);
     addspeed = wishspeed - currentspeed;
     if (addspeed <= 0)
@@ -325,6 +336,30 @@ static void PM_Accelerate(const vec3_t wishdir, float wishspeed, float accel)
 
     for (i = 0; i < 3; i++)
         pml.velocity[i] += accelspeed * wishdir[i];
+
+	float h_spd;
+	h_vel[0] = pml.velocity[0];
+	h_vel[1] = pml.velocity[1];
+	h_vel[2] = 0;
+	h_spd = VectorLength(h_vel);
+
+	float max_speed = pml.maxspeed;
+	if (start_spd > max_speed)
+	{
+		if (h_spd > start_spd)
+		{
+			VectorNormalize(h_vel);
+			VectorScale(h_vel, start_spd, h_vel);
+		}
+	}
+	else if (h_spd > max_speed)
+	{
+		VectorNormalize(h_vel);
+		VectorScale(h_vel, max_speed, h_vel);
+	}
+
+	pml.velocity[0] = h_vel[0];
+	pml.velocity[1] = h_vel[1];
 }
 
 static void PM_AirAccelerate(const vec3_t wishdir, float wishspeed, float accel)
@@ -483,6 +518,19 @@ static void PM_AirMove(void)
     float       wishspeed;
     float       maxspeed;
 
+	//
+	// clamp to server defined max speed
+	//
+	maxspeed = (pm->s.pm_flags & PMF_DUCKED) ? pm_duckspeed : pmp->maxspeed;
+	if (!(pm->s.pm_flags & PMF_DUCKED) && (pm->s.pm_flags & PMF_ON_GROUND) && (pm->cmd.forwardmove > 300))
+	{
+		pm->s.pm_flags |= PMF_HUNT_SPRINT;
+		maxspeed = pm_sprintspeed;
+		pm->cmd.sidemove /= 2;
+	}
+	pml.maxspeed = maxspeed;
+	//
+
     fmove = pm->cmd.forwardmove;
     smove = pm->cmd.sidemove;
 
@@ -494,11 +542,6 @@ static void PM_AirMove(void)
 
     VectorCopy(wishvel, wishdir);
     wishspeed = VectorNormalize(wishdir);
-
-//
-// clamp to server defined max speed
-//
-    maxspeed = (pm->s.pm_flags & PMF_DUCKED) ? pm_duckspeed : pmp->maxspeed;
 
     if (wishspeed > maxspeed) {
         VectorScale(wishvel, maxspeed / wishspeed, wishvel);
@@ -540,7 +583,7 @@ static void PM_AirMove(void)
         if (pmp->airaccelerate)
             PM_AirAccelerate(wishdir, wishspeed, pm_accelerate);
         else
-            PM_Accelerate(wishdir, wishspeed, 1);
+            PM_Accelerate(wishdir, wishspeed, pm_accelerate * 0.6);
         // add gravity
         pml.velocity[2] -= pm->s.gravity * pml.frametime;
         PM_StepSlideMove();
@@ -648,7 +691,7 @@ static void PM_CheckJump(void)
         return;
     }
 
-    if (pm->cmd.upmove < 10) {
+    if (pm->cmd.upmove < 10 && pm->s.pm_flags & PMF_ON_GROUND) {
         // not holding jump
         pm->s.pm_flags &= ~PMF_JUMP_HELD;
         return;
@@ -866,7 +909,7 @@ static void PM_CheckDuck(void)
 
     if (pm->s.pm_flags & PMF_DUCKED) {
         pm->maxs[2] = 4;
-        pm->viewheight = -2;
+        pm->viewheight = 4;
     } else {
         pm->maxs[2] = 32;
         pm->viewheight = 22;
@@ -1036,6 +1079,7 @@ void Pmove(pmove_t *pmove, pmoveParams_t *params)
     pm->groundentity = NULL;
     pm->watertype = 0;
     pm->waterlevel = 0;
+	pm->s.pm_flags &= ~PMF_HUNT_SPRINT;
 
     // clear all pmove local vars
     memset(&pml, 0, sizeof(pml));
@@ -1046,6 +1090,8 @@ void Pmove(pmove_t *pmove, pmoveParams_t *params)
 
     // save old org in case we get stuck
     VectorCopy(pm->s.origin, pml.previous_origin);
+
+	pml.maxspeed = pmp->maxspeed;
 
     PM_ClampAngles();
 
@@ -1141,8 +1187,8 @@ void PmoveInit(pmoveParams_t *pmp)
 
     pmp->speedmult = 1;
     pmp->watermult = 0.5f;
-    pmp->maxspeed = 300;
-    pmp->friction = 6;
+    pmp->maxspeed = 220;
+    pmp->friction = 7;
     pmp->waterfriction = 1;
     pmp->flyfriction = 9;
 }

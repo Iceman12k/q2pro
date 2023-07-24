@@ -559,6 +559,11 @@ void SP_monster_brain(edict_t *self) {
     self->health = 300;
     self->gib_health = -150;
     self->mass = 400;
+	self->hunt_hitboxstyle = 1;
+
+	self->hunt_damagemults[HDAMAGETYPE_BLUNT] = 0.2;
+	self->hunt_damagemults[HDAMAGETYPE_RENDING] = 0.3;
+	self->hunt_damagemults[HDAMAGETYPE_BULLET] = 0.3;
 
     self->pain = brain_pain;
     self->die = brain_die;

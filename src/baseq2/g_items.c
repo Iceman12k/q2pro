@@ -2067,8 +2067,14 @@ void SP_item_health_small(edict_t *self)
     self->model = "models/items/healing/stimpack/tris.md2";
     self->count = 2;
     SpawnItem(self, FindItem("Health"));
-    self->style = HEALTH_IGNORE_MAX;
+    //self->style = HEALTH_IGNORE_MAX;
     gi.soundindex("items/s_health.wav");
+
+	self->solid = SOLID_NOT;
+
+	VectorSet(self->hunt_interact.mins, -32, -32, -8);
+	VectorSet(self->hunt_interact.maxs, 32, 32, 32);
+	self->hunt_interact.def = &int_medkit;
 }
 
 /*QUAKED item_health_large (.3 .3 1) (-16 -16 -16) (16 16 16)

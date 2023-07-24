@@ -560,9 +560,12 @@ static void CL_BaseMove(vec3_t move)
     }
 
 // adjust for speed key / running
+	//VectorScale(move, 2, move);
+	///*
     if ((in_speed.state & 1) ^ cl_run->integer) {
         VectorScale(move, 2, move);
     }
+	//*/
 }
 
 static void CL_ClampSpeed(vec3_t move)
@@ -775,7 +778,7 @@ void CL_FinalizeCmd(void)
     move[1] += cl.mousemove[1];
 
     // clamp to server defined max speed
-    CL_ClampSpeed(move);
+	CL_ClampSpeed(move);
 
     // store the movement vector
     cl.cmd.forwardmove = move[0];

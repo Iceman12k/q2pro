@@ -788,6 +788,7 @@ void SP_monster_tank(edict_t *self)
     }
 
     self->mass = 500;
+	self->hunt_hitboxstyle = 1;
 
     self->pain = tank_pain;
     self->die = tank_die;
@@ -799,6 +800,10 @@ void SP_monster_tank(edict_t *self)
     self->monsterinfo.melee = NULL;
     self->monsterinfo.sight = tank_sight;
     self->monsterinfo.idle = tank_idle;
+
+	self->hunt_damagemults[HDAMAGETYPE_BLUNT] = 0.1;
+	self->hunt_damagemults[HDAMAGETYPE_EXPLOSIVE] = 0.6;
+	self->hunt_damagemults[HDAMAGETYPE_BULLET] = 0.4;
 
     gi.linkentity(self);
 

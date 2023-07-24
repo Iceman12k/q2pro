@@ -417,6 +417,11 @@ void SP_monster_berserk(edict_t *self)
     self->movetype = MOVETYPE_STEP;
     self->solid = SOLID_BBOX;
 
+	self->hunt_hitboxstyle = 1;
+	self->hunt_damagemults[HDAMAGETYPE_BLUNT] = 0.3;
+	self->hunt_damagemults[HDAMAGETYPE_EXPLOSIVE] = 0.3;
+	self->hunt_damagemults[HDAMAGETYPE_BULLET] = 0.4;
+
     self->health = 240;
     self->gib_health = -60;
     self->mass = 250;

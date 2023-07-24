@@ -615,6 +615,7 @@ void SP_misc_insane(edict_t *self)
     self->health = 100;
     self->gib_health = -50;
     self->mass = 300;
+	self->hunt_hitboxstyle = 1;
 
     self->pain = insane_pain;
     self->die = insane_die;

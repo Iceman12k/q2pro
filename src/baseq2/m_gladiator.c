@@ -352,6 +352,7 @@ void SP_monster_gladiator(edict_t *self)
     self->health = 400;
     self->gib_health = -175;
     self->mass = 400;
+	self->hunt_hitboxstyle = 1;
 
     self->pain = gladiator_pain;
     self->die = gladiator_die;

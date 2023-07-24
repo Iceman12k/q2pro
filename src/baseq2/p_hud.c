@@ -363,6 +363,43 @@ G_SetStats
 */
 void G_SetStats(edict_t *ent)
 {
+	char    entry[1024];
+	char    string[1400];
+	int		string_seek;
+	int x;
+	int y;
+
+	x = -40;
+	y = -80;
+
+	memset(string, 0, sizeof(string)); // clear string
+	string_seek = 0;
+	ent->client->ps.stats[STAT_SPECTATOR] = 0;
+	ent->client->ps.stats[STAT_LAYOUTS] = 1;
+	ent->client->ps.stats[STAT_PICKUP_ICON] = 0;
+	ent->client->ps.stats[STAT_PICKUP_STRING] = 0;
+	ent->client->ps.stats[STAT_HEALTH] = 0;
+	ent->client->ps.stats[STAT_HEALTH_ICON] = 0;
+
+	Hunt_HealthBar_Render(ent, string, entry, x, y);
+	Hunt_Ammo_Render(ent, string, entry, -120, y + 20);
+	Hunt_Inventory_Render(ent, string, entry);
+	Hunt_Interact_Render(ent, string, entry);
+	Hunt_Crosshair_Render(ent, string, entry, x, y);
+
+	// compass
+	ent->client->ps.stats[STAT_HEALTH] = (ent->client->v_angle[YAW] > 0) ? ent->client->v_angle[YAW] : ent->client->v_angle[YAW] + 360;
+	string[sizeof(string) - 1] = 0;
+	
+	if (memcmp(ent->client->hud_layout_last, string, sizeof(string)))
+	{
+		memcpy(ent->client->hud_layout_last, string, sizeof(string));
+		gi.WriteByte(svc_layout);
+		gi.WriteString(string);
+		gi.unicast(ent, false);
+	}
+
+#if 0
     gitem_t     *item;
     int         index, cells;
     int         power_armor_type;
@@ -501,6 +538,7 @@ void G_SetStats(edict_t *ent)
         ent->client->ps.stats[STAT_HELPICON] = 0;
 
     ent->client->ps.stats[STAT_SPECTATOR] = 0;
+#endif
 }
 
 /*

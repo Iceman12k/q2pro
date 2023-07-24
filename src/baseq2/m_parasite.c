@@ -342,7 +342,7 @@ void parasite_drain_attack(edict_t *self)
     gi.multicast(self->s.origin, MULTICAST_PVS);
 
     VectorSubtract(start, end, dir);
-    T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, damage, 0, DAMAGE_NO_KNOCKBACK, MOD_UNKNOWN);
+	Hunt_T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, damage, 0, DAMAGE_NO_KNOCKBACK, HDAMAGETYPE_POISON, MOD_UNKNOWN);
 }
 
 mframe_t parasite_frames_drain [] = {

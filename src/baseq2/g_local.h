@@ -39,6 +39,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define svc_layout          4
 #define svc_inventory       5
 #define svc_stufftext       11
+#define svc_configstring    13
 
 //==================================================================
 
@@ -799,6 +800,203 @@ void ChaseNext(edict_t *ent);
 void ChasePrev(edict_t *ent);
 void GetChaseTarget(edict_t *ent);
 
+//
+// p_hunt.c
+//
+enum {
+	WEP_ANIM_IDLE,
+	WEP_ANIM_IDLE2,
+	WEP_ANIM_DRAW,
+	WEP_ANIM_PUTAWAY,
+	WEP_ANIM_FIRE1,
+	WEP_ANIM_FIRE2,
+	WEP_ANIM_ADSIN,
+	WEP_ANIM_ADSOUT,
+	WEP_ANIM_ADSFIRE,
+	WEP_ANIM_ADSFIRE2,
+	WEP_ANIM_ADS,
+	WEP_ANIM_RELOAD1,
+	WEP_ANIM_RELOAD2,
+	WEP_ANIM_RELOAD3,
+	WEP_ANIM_MAX
+};
+
+#define ATTN_GUN_MECHANICAL		3
+#define HUNT_FORCECROSSHAIR		16
+
+#define HUNT_WEPFLAGS_ADS		0x0001
+#define HUNT_WEPFLAGS_ADSWANTED	0x0002
+#define HUNT_WEPFLAGS_ADSTOGGLE	0x0004
+#define HUNT_WEPFLAGS_RELOAD	0x0008
+#define HUNT_WEPFLAGS_DSWANTED	0x0010
+#define HUNT_WEPFLAGS_DS		0x0020
+
+#define MASK_HUNTSHOT               (CONTENTS_SOLID|CONTENTS_MONSTER|CONTENTS_WINDOW)
+
+enum {
+	AMMOTYPE_COMPACT,
+	AMMOTYPE_MEDIUM,
+	AMMOTYPE_LONG,
+	AMMOTYPE_SPECIAL,
+	AMMOTYPE_BOLTS,
+	AMMOTYPE_MAUSER,
+	AMMOTYPE_NITRO,
+	AMMOTYPE_MAX,
+};
+
+enum {
+	TIP_AMMO,
+	TIP_WEAPON,
+	TIP_HEALTH,
+	TIP_REVIVE,
+};
+
+enum {
+	HDAMAGETYPE_GENERIC,
+	HDAMAGETYPE_BULLET,
+	HDAMAGETYPE_BLUNT,
+	HDAMAGETYPE_SHARP,
+	HDAMAGETYPE_INCENDIARY,
+	HDAMAGETYPE_POISON,
+	HDAMAGETYPE_RENDING,
+	HDAMAGETYPE_EXPLOSIVE,
+	HDAMAGETYPE_MAX,
+};
+
+typedef struct huntbar_s {
+	int type;
+	int amount;
+	struct huntbar_s *next;
+} huntbar_t;
+
+typedef struct animevent_s {
+	float	time;
+	int		frame;
+	void(*func)(edict_t *ent);
+	int		sound;
+
+	struct animevent_s *next;
+} animevent_t;
+
+typedef struct wanim_s {
+	int			loop;
+	float		time_end;
+	int			anim_next;
+
+	animevent_t *events;
+} wanim_t;
+
+typedef struct huntweapon_s {
+	const char *name;
+	const char *viewmodel;
+	const char *holdmodel;
+	const char *invicon;
+
+	int			crosshair;
+	
+	int			ammotype;
+	int			maxammo;
+	int			adsfov;
+	vec3_t		view_offset;
+	const char  *adsmodel; // hack!
+	int			nosprintanim;
+	void		(*framefunc)(edict_t *ent, usercmd_t *ucmd);
+	wanim_t		animations[WEP_ANIM_MAX];
+} huntweapon_t;
+
+typedef struct huntweaponinstance_s {
+	huntweapon_t	*def;
+	int				ammo;
+} huntweaponinstance_t;
+
+typedef struct huntinteractable_s {
+	int			tip;
+	float		time;
+	void		(*usefunc)(edict_t *ent);
+} huntinteractable_t;
+
+typedef struct huntinteractinstance_s {
+	huntinteractable_t *def;
+	vec3_t mins;
+	vec3_t maxs;
+} huntinteractinstance_t;
+
+extern huntinteractable_t int_medkit;
+
+typedef struct hunttrait_s
+{
+	char *name;
+	char *icon;
+} hunttrait_t;
+
+typedef struct hunttraitinstance_s {
+	hunttrait_t *def;
+	struct hunttraitinstance_s *next;
+} hunttraitinstance_t;
+
+#define MODEL_FORMAT ".md3"
+
+#define WEAPON_LIST \
+	H_WEAPON(w_peacemaker, "models/weapons2/peacemaker/v_peacemaker" MODEL_FORMAT, "models/weapons2/peacemaker/e_peacemaker" MODEL_FORMAT, "i_pax") \
+	H_WEAPON(w_conversion, "models/weapons2/remington58/v_remington58" MODEL_FORMAT, "models/weapons2/remington58/e_remington58" MODEL_FORMAT, NULL) \
+	H_WEAPON(w_springfield, "models/weapons2/sharps/v_sharps" MODEL_FORMAT, "models/weapons2/sharps/e_sharps" MODEL_FORMAT, "i_sprfld") \
+	H_WEAPON(w_winfield, "models/weapons2/winch66/v_winchester66" MODEL_FORMAT, "models/weapons2/winch66/e_winchester66" MODEL_FORMAT, "i_sprfld") \
+	H_WEAPON(w_m1garand, "models/weapons/usa/v_m1/tris.md2", "models/weapons/usa/g_m1/tris.md2", "i_sprfld") \
+	H_WEAPON(t_dusters, "models/weapons/v_fists/tris.md2", "models/weapons/g_knife/tris.md2", "i_dstr") \
+	H_WEAPON(t_knife, "models/weapons/v_knife/tris.md2", "models/weapons/g_knife/tris.md2", "i_knfe") \
+
+#define H_WEAPON(id, wmodel, hmodel, icon) extern huntweapon_t id;
+WEAPON_LIST
+#undef H_WEAPON
+
+#define TRAIT_LIST \
+	H_TRAIT(trait_levering, "Levering", "t_lvr") \
+	H_TRAIT(trait_ironrepeater, "Iron Repeater", "t_irpt") \
+	H_TRAIT(trait_silentkiller, "Silent Killer", "t_skllr") \
+
+#define H_TRAIT(id, name, icon) extern hunttrait_t id;
+TRAIT_LIST
+#undef H_TRAIT
+
+void Hunt_Interact_Render(edict_t *ent, char *string, char *entry);
+void Hunt_Interact_Simulate(edict_t *ent, usercmd_t *ucmd);
+
+void Hunt_Inventory_Render(edict_t *ent, char *string, char *entry);
+void Hunt_Crosshair_Render(edict_t *ent, char *string, char *entry, int x, int y);
+void Hunt_Ammo_Render(edict_t *ent, char *string, char *entry, int x, int y);
+void Hunt_HealthBar_Render(edict_t *ent, char *string, char *entry, int x, int y);
+void Hunt_HealthBar_Alloc(edict_t *ent, int type);
+void Hunt_Healthbar_Simulate(edict_t *ent);
+void Hunt_WeaponPhysics(edict_t *ent, usercmd_t *ucmd);
+void Hunt_Viewmodel(edict_t *ent);
+
+void Hunt_SetWeapon(edict_t *ent, huntweaponinstance_t *wep);
+void Hunt_WeaponInit(void);
+
+void Hunt_StartAnimation(edict_t *ent, huntweapon_t *wep, int anim);
+void Hunt_AddWeaponAnimationPeriod(wanim_t *anim, float timestamp_start, int frame_start, int frames, float framerate);
+void Hunt_AddWeaponAnimationEvent(wanim_t *anim, float timestamp, int frame, void(*func)(edict_t *ent), int sound);
+void Hunt_DisableCrosshair(edict_t *ent);
+void Hunt_EnableCrosshair(edict_t *ent);
+void Hunt_AdsIn(edict_t *ent);
+void Hunt_AdsOut(edict_t *ent);
+void Hunt_AdsLateCheck(edict_t *ent);
+void Hunt_AdsLateCheckIdle(edict_t *ent);
+void Hunt_AdsFrame(edict_t *ent);
+void Hunt_DryFire(edict_t *ent);
+
+int Hunt_HunterHasTrait(edict_t *ent, hunttrait_t *trait);
+void Hunt_FireBullet(edict_t *self, vec3_t start, vec3_t aimdir, float spread, float damage, float monster_damage, float falloff_start, float falloff_factor);
+void Hunt_FireTrace(edict_t *self, vec3_t start, vec3_t aimdir, float spread, float damage, float monster_damage, float range, float damagetype, float falloff_start, float falloff_factor);
+void Hunt_T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, int damage, int knockback, int dflags, int dtype, int mod);
+
+void W_PeaceMaker_Init(void);
+void W_Springfield_Init(void);
+void W_Winfield_Init(void);
+void W_M1Garand_Init(void);
+void T_Dusters_Init(void);
+//
+
 //============================================================================
 
 // client_t->anim_priority
@@ -846,6 +1044,8 @@ typedef struct {
     int         helpchanged;
 
     bool        spectator;      // client is a spectator
+
+	int			desired_fov;
 } client_persistant_t;
 
 // client data that stays across deathmatch respawns
@@ -943,6 +1143,44 @@ struct gclient_s {
 
     edict_t     *chase_target;      // player we are chasing
     bool        update_chase;       // need to update chase info?
+
+
+	// Reki: Hunt stuff
+	usercmd_t	lastcmd;
+	int			lastpmflags;
+
+	huntbar_t	*hunt_healthbars;
+	int			hunt_regen_framenum;
+	int			hunt_charcoal_framenum;
+	int			hunt_poison_framenum;
+	int			hunt_poison_screeneffect;
+
+	float		hunt_healthbar_hide;
+	float		hunt_inventory_hide;
+
+	float		hunt_client_time;
+	float		hunt_attack_finished;
+	float		hunt_busy_finished;
+
+	huntweaponinstance_t hunt_invslots[10];
+	huntweaponinstance_t *hunt_invselected;
+	int			hunt_invammo[AMMOTYPE_MAX];
+	int			hunt_invwanted;
+
+	int			hunt_weapon_anim;
+	int			hunt_weapon_animframe;
+	float		hunt_weapon_animtime;
+	float		hunt_weapon_inaccuracy;
+	float		hunt_weapon_recoil;
+	int			hunt_weapon_flags;
+	vec3_t		hunt_weapon_angle;
+	int			hunt_forcecrosshair;
+
+	int			hunt_interact_busy;
+	huntinteractinstance_t *hunt_interactablehover;
+	float		hunt_interactprogress;
+
+	char		hud_layout_last[1400];
 };
 
 
@@ -1092,4 +1330,9 @@ struct edict_s {
     // common data blocks
     moveinfo_t      moveinfo;
     monsterinfo_t   monsterinfo;
+
+	// Reki: hunt
+	huntinteractinstance_t hunt_interact;
+	int hunt_hitboxstyle;
+	float hunt_damagemults[HDAMAGETYPE_MAX];
 };

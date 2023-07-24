@@ -1065,6 +1065,7 @@ void SP_monster_soldier_x(edict_t *self)
     sound_cock =    gi.soundindex("infantry/infatck3.wav");
 
     self->mass = 100;
+	self->hunt_hitboxstyle = 1;
 
     self->pain = soldier_pain;
     self->die = soldier_die;

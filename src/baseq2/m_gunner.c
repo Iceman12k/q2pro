@@ -573,6 +573,11 @@ void SP_monster_gunner(edict_t *self)
     self->health = 175;
     self->gib_health = -70;
     self->mass = 200;
+	self->hunt_hitboxstyle = 1;
+
+	self->hunt_damagemults[HDAMAGETYPE_BLUNT] = 0.8;
+	self->hunt_damagemults[HDAMAGETYPE_RENDING] = 0.3;
+	self->hunt_damagemults[HDAMAGETYPE_BULLET] = 0.6;
 
     self->pain = gunner_pain;
     self->die = gunner_die;

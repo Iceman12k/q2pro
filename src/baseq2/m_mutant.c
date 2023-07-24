@@ -609,6 +609,7 @@ void SP_monster_mutant(edict_t *self)
     self->health = 300;
     self->gib_health = -120;
     self->mass = 300;
+	self->hunt_hitboxstyle = 1;
 
     self->pain = mutant_pain;
     self->die = mutant_die;

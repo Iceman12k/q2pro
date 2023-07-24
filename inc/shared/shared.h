@@ -323,6 +323,7 @@ uint32_t Q_rand_uniform(uint32_t n);
 
 #define clamp(a,b,c)    ((a)<(b)?(a)=(b):(a)>(c)?(a)=(c):(a))
 #define cclamp(a,b,c)   ((b)>(c)?clamp(a,c,b):clamp(a,b,c))
+#define bound(a,b,c)    ((a)<(b)?(b):(a)>(c)?(c):(a))
 
 #ifndef max
 #define max(a,b) ((a)>(b)?(a):(b))
@@ -748,6 +749,7 @@ typedef enum {
 #define PMF_TIME_TELEPORT   32  // pm_time is non-moving time
 #define PMF_NO_PREDICTION   64  // temporarily disables prediction (used for grappling hook)
 #define PMF_TELEPORT_BIT    128 // used by q2pro
+#define PMF_HUNT_SPRINT		256 // Reki: added for hunt sprint
 
 // this structure needs to be communicated bit-accurate
 // from the server to the client to guarantee that
@@ -759,7 +761,7 @@ typedef struct {
 
     short       origin[3];      // 12.3
     short       velocity[3];    // 12.3
-    byte        pm_flags;       // ducked, jump_held, etc
+    short       pm_flags;       // ducked, jump_held, etc
     byte        pm_time;        // each unit = 8 ms
     short       gravity;
     short       delta_angles[3];    // add to command angles to get view direction

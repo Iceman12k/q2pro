@@ -141,10 +141,10 @@ void P_DamageFeedback(edict_t *player)
     if (client->damage_alpha < 0)
         client->damage_alpha = 0;
     client->damage_alpha += count * 0.01f;
-    if (client->damage_alpha < 0.2f)
-        client->damage_alpha = 0.2f;
-    if (client->damage_alpha > 0.6f)
-        client->damage_alpha = 0.6f;    // don't go too saturated
+    if (client->damage_alpha < 0.1f)
+        client->damage_alpha = 0.1f;
+    if (client->damage_alpha > 0.3f)
+        client->damage_alpha = 0.3f;    // don't go too saturated
 
     // the color of the blend will vary based on how much was absorbed
     // by different armors
@@ -216,10 +216,24 @@ void SV_CalcViewOffset(edict_t *ent)
     float       bob;
     float       ratio;
     float       delta;
+	float		bob_up_val;
+	float		bob_pitch_val;
+	float		bob_roll_val;
     vec3_t      v;
 
 
 //===================================
+
+	bob_up_val = bob_up->value;
+	bob_pitch_val = bob_pitch->value;
+	bob_roll_val = bob_roll->value;
+
+	if (ent->client->ps.pmove.pm_flags & PMF_HUNT_SPRINT)
+	{
+		bob_up_val *= 2;
+		bob_pitch_val *= 2;
+		bob_roll_val *= 1.1;
+	}
 
     // base angles
     angles = ent->client->ps.kick_angles;
@@ -264,11 +278,11 @@ void SV_CalcViewOffset(edict_t *ent)
 
         // add angles based on bob
 
-        delta = bobfracsin * bob_pitch->value * xyspeed;
+        delta = bobfracsin * bob_pitch_val * xyspeed;
         if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
             delta *= 6;     // crouching
         angles[PITCH] += delta;
-        delta = bobfracsin * bob_roll->value * xyspeed;
+        delta = bobfracsin * bob_roll_val * xyspeed;
         if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
             delta *= 6;     // crouching
         if (bobcycle & 1)
@@ -295,7 +309,7 @@ void SV_CalcViewOffset(edict_t *ent)
 
     // add bob height
 
-    bob = bobfracsin * xyspeed * bob_up->value;
+    bob = bobfracsin * xyspeed * bob_up_val;
     if (bob > 6)
         bob = 6;
     //gi.DebugGraph (bob *2, 255);
@@ -325,39 +339,71 @@ void SV_CalcGunOffset(edict_t *ent)
     int     i;
     float   delta;
 
-    // gun angles from bobbing
-    ent->client->ps.gunangles[ROLL] = xyspeed * bobfracsin * 0.005f;
-    ent->client->ps.gunangles[YAW] = xyspeed * bobfracsin * 0.01f;
-    if (bobcycle & 1) {
-        ent->client->ps.gunangles[ROLL] = -ent->client->ps.gunangles[ROLL];
-        ent->client->ps.gunangles[YAW] = -ent->client->ps.gunangles[YAW];
-    }
+	if (!(ent->client->hunt_weapon_flags & HUNT_WEPFLAGS_ADS))
+	{
+		// gun angles from bobbing
+		ent->client->ps.gunangles[ROLL] = xyspeed * bobfracsin * 0.005f;
+		ent->client->ps.gunangles[YAW] = xyspeed * bobfracsin * 0.01f;
+		if (bobcycle & 1) {
+			ent->client->ps.gunangles[ROLL] = -ent->client->ps.gunangles[ROLL];
+			ent->client->ps.gunangles[YAW] = -ent->client->ps.gunangles[YAW];
+		}
 
-    ent->client->ps.gunangles[PITCH] = xyspeed * bobfracsin * 0.005f;
+		ent->client->ps.gunangles[PITCH] = xyspeed * bobfracsin * 0.005f;
 
-    // gun angles from delta movement
-    for (i = 0 ; i < 3 ; i++) {
-        delta = ent->client->oldviewangles[i] - ent->client->ps.viewangles[i];
-        if (delta > 180)
-            delta -= 360;
-        if (delta < -180)
-            delta += 360;
-        clamp(delta, -45, 45);
-        if (i == YAW)
-            ent->client->ps.gunangles[ROLL] += 0.1f * delta;
-        ent->client->ps.gunangles[i] += 0.2f * delta;
-    }
+		// gun angles from delta movement
+		for (i = 0; i < 3; i++) {
+			delta = ent->client->oldviewangles[i] - ent->client->ps.viewangles[i];
+			if (delta > 180)
+				delta -= 360;
+			if (delta < -180)
+				delta += 360;
+			clamp(delta, -45, 45);
+			if (i == YAW)
+				ent->client->ps.gunangles[ROLL] -= 0.05f * delta;
+			ent->client->ps.gunangles[i] -= 0.1f * delta;
+		}
 
-    // gun height
-    VectorClear(ent->client->ps.gunoffset);
-//  ent->ps->gunorigin[2] += bob;
+		// gun height
+		VectorClear(ent->client->ps.gunoffset);
+		//  ent->ps->gunorigin[2] += bob;
 
-    // gun_x / gun_y / gun_z are development tools
-    for (i = 0 ; i < 3 ; i++) {
-        ent->client->ps.gunoffset[i] += forward[i] * (gun_y->value);
-        ent->client->ps.gunoffset[i] += right[i] * gun_x->value;
-        ent->client->ps.gunoffset[i] += up[i] * (-gun_z->value);
-    }
+			// gun_x / gun_y / gun_z are development tools
+		for (i = 0; i < 3; i++) {
+			ent->client->ps.gunoffset[i] += forward[i] * (gun_y->value);
+			ent->client->ps.gunoffset[i] += right[i] * gun_x->value;
+			ent->client->ps.gunoffset[i] += up[i] * (-gun_z->value);
+		}
+	}
+	else
+	{
+		VectorClear(ent->client->ps.gunoffset);
+
+		// gun angles from bobbing
+		ent->client->ps.gunangles[ROLL] = xyspeed * bobfracsin * 0.0025f;
+		ent->client->ps.gunangles[YAW] = xyspeed * bobfracsin * 0.005f;
+		if (bobcycle & 1) {
+			ent->client->ps.gunangles[ROLL] = -ent->client->ps.gunangles[ROLL];
+			ent->client->ps.gunangles[YAW] = -ent->client->ps.gunangles[YAW];
+		}
+
+		ent->client->ps.gunangles[PITCH] = xyspeed * bobfracsin * 0.0025f;
+
+		// gun angles from delta movement
+		for (i = 0; i < 3; i++) {
+			delta = ent->client->oldviewangles[i] - ent->client->ps.viewangles[i];
+			if (delta > 180)
+				delta -= 360;
+			if (delta < -180)
+				delta += 360;
+			clamp(delta, -45, 45);
+			if (i == YAW)
+				ent->client->ps.gunangles[ROLL] -= 0.025f * delta;
+			ent->client->ps.gunangles[i] -= 0.05f * delta;
+		}
+	}
+
+	Hunt_Viewmodel(ent);
 }
 
 
@@ -444,6 +490,12 @@ void SV_CalcBlend(edict_t *ent)
 
     if (ent->client->bonus_alpha > 0)
         SV_AddBlend(0.85f, 0.7f, 0.3f, ent->client->bonus_alpha, ent->client->ps.blend);
+
+	if (ent->client->hunt_poison_screeneffect)
+		SV_AddBlend(0.1f, 0.5f, 0.0f, 0.2f, ent->client->ps.blend);
+
+	if (ent->client->hunt_weapon_flags & HUNT_WEPFLAGS_DS)
+		SV_AddBlend(0.05f, 0.3f, 0.5f, 0.05f, ent->client->ps.blend);
 
     // drop the damage value
     ent->client->damage_alpha -= 0.06f;
@@ -733,7 +785,7 @@ void G_SetClientEvent(edict_t *ent)
     if (ent->s.event)
         return;
 
-    if (ent->groundentity && xyspeed > 225) {
+    if (ent->groundentity && xyspeed > 185) {
         if ((int)(current_client->bobtime + bobmove) != bobcycle)
             ent->s.event = EV_FOOTSTEP;
     }
@@ -933,10 +985,10 @@ void ClientEndServerFrame(edict_t *ent)
         current_client->bobtime = 0;    // start at beginning of cycle again
     } else if (ent->groundentity) {
         // so bobbing only cycles when on ground
-        if (xyspeed > 210)
-            bobmove = 0.25f;
+        if (xyspeed > 240)
+            bobmove = 0.275f;
         else if (xyspeed > 100)
-            bobmove = 0.125f;
+            bobmove = 0.175f;
         else
             bobmove = 0.0625f;
     } else {
@@ -972,9 +1024,10 @@ void ClientEndServerFrame(edict_t *ent)
 
     // chase cam stuff
     if (ent->client->resp.spectator)
-        G_SetSpectatorStats(ent);
+    	G_SetSpectatorStats(ent);
     else
-        G_SetStats(ent);
+    	G_SetStats(ent);
+
     G_CheckChaseStats(ent);
 
     G_SetClientEvent(ent);

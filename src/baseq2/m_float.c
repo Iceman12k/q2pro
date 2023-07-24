@@ -620,6 +620,13 @@ void SP_monster_floater(edict_t *self)
     self->gib_health = -80;
     self->mass = 300;
 
+	self->hunt_damagemults[HDAMAGETYPE_BLUNT] = 0.8;
+	self->hunt_damagemults[HDAMAGETYPE_RENDING] = 0.3;
+	self->hunt_damagemults[HDAMAGETYPE_POISON] = 0.1;
+	self->hunt_damagemults[HDAMAGETYPE_INCENDIARY] = 0.4;
+	self->hunt_damagemults[HDAMAGETYPE_SHARP] = 2.1;
+	self->hunt_damagemults[HDAMAGETYPE_BULLET] = 1.2;
+
     self->pain = floater_pain;
     self->die = floater_die;
 
