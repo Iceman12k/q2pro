@@ -471,7 +471,7 @@ void SV_BuildClientFrame(client_t *client)
         }
 
         // ignore if not touching a PV leaf
-        if (ent != clent && !sv_novis->integer) {
+        if (ent != clent && !sv_novis->integer && !(ent->s.renderfx & RF_DEPTHHACK)) {
             // check area
             if (!CM_AreasConnected(client->cm, clientarea, ent->areanum)) {
                 // doors can legally straddle two areas, so
