@@ -166,6 +166,8 @@ game_src = [
   'src/huntrpg/g_spawn.c',
   'src/huntrpg/p_base.c',
   'src/huntrpg/p_cmd.c',
+  'src/huntrpg/p_inventory.c',
+  'src/huntrpg/e_detail.c',
   'src/shared/shared.c',
 ]
 endif

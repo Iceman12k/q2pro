@@ -67,7 +67,11 @@ void Cmd_Say_f(edict_t *ent, bool team, bool arg0)
 	gi.cprintf(NULL, PRINT_CHAT, "%s", text);
 }
 
-
+void Cmd_InvToggle_f(edict_t *ent)
+{
+	ent->client->inv_open = !ent->client->inv_open;
+	ent->client->inv_angle = ent->client->ps.viewangles[1];
+}
 
 /*
 =================
@@ -103,6 +107,12 @@ void ClientCommand(edict_t *ent)
 	else if (Q_stricmp(cmd, "noclip") == 0)
 		Cmd_Noclip_f(ent);
 	*/
+
+	if (Q_stricmp(cmd, "help") == 0 || Q_stricmp(cmd, "inventory") == 0)
+	{
+		Cmd_InvToggle_f(ent);
+		return;
+	}
 
 	if (Q_stricmp(cmd, "use") == 0)
 		return;

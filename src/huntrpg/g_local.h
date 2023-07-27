@@ -67,8 +67,33 @@ typedef enum {
 	F_IGNORE
 } fieldtype_t;
 
+typedef struct detail_edict_s detail_edict_t;
+typedef struct detail_list_s detail_list_t;
+
 typedef gclient_t gclient_s;
 typedef edict_t edict_s;
+typedef detail_edict_t detail_edict_s;
+typedef detail_list_t detail_list_s;
+
+struct detail_edict_s {
+	// detail entity (non collision, but still just as important!) we allocate
+	// these separately, and have a render queue that sends the closest ones
+	// to each client, effectively giving us infinite ents with added LOD
+	entity_state_t s;
+	qboolean isused;
+
+	vec3_t old_origin[MAX_CLIENTS];
+
+	char *classname;
+	float(*predraw)(edict_t *v, detail_edict_t *e, entity_state_t *s);
+};
+
+struct detail_list_s {
+	detail_edict_t *e; // actual detail edict we're rendering
+	int				score; // score for priority queue sorting
+	detail_list_t *next;
+};
+
 
 #define FOFS(x) q_offsetof(edict_t, x)
 #define STOFS(x) q_offsetof(spawn_temp_t, x)
@@ -176,14 +201,16 @@ struct gclient_s {
 	pmove_state_t       old_pmove;  // for detecting out-of-pmove changes
 	vec3_t				v_angle;    // aiming direction
 
-
-
-
 #define FLOOD_MSGS  10
 	float       flood_locktill;             // locked from talking
 	float       flood_when[FLOOD_MSGS];     // when messages were said
 	int         flood_whenhead;             // head pointer for when said
 
+	qboolean	inv_open;
+	float		inv_angle;
+
+	detail_list_t *detail_queue;
+	detail_list_t *detail_current;
 };
 
 struct edict_s {
@@ -273,6 +300,10 @@ struct edict_s {
 	int         style;          // also used as areaportal number
 
 	float		random;
+
+	// rpg stuff
+	float		(*predraw)(edict_t *v, edict_t *e, entity_state_t *s);
+
 };
 
 
@@ -373,7 +404,19 @@ void ClientBegin(edict_t *ent);
 //
 void ClientCommand(edict_t *ent);
 
+//
+// p_inventory.c
+//
+void I_Initialize(void);
 
+//
+// e_detail.c
+//
+void D_Initialize(void);
+void D_GenerateQueue(edict_t *ent);
+detail_edict_t* D_Spawn(void);
+void D_Free(detail_edict_t *detail);
 
-
-
+//
+//
+//

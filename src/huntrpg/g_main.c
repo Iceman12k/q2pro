@@ -65,6 +65,12 @@ void Com_Error(error_type_t type, const char *fmt, ...)
 
 static int G_customizeentityforclient(edict_t *viewer, edict_t *ent, entity_state_t *state)
 {
+	// do whatever 'global' filtering
+	// dimension_see ?
+
+	// predraw 
+	if (ent->predraw)
+		return ent->predraw(viewer, ent, state);
 	return true;
 }
 

@@ -31,9 +31,34 @@ void SP_worldspawn(edict_t *ent)
 	//---------------
 
 	// precache assets
+	gi.modelindex("models/null.md2");
 	gi.modelindex("models/hud/bar.md2");
 	gi.modelindex("models/weapons/v_pickaxe.md2");
-	gi.modelindex("models/null.md2");
+	gi.modelindex("models/inven/square.md2");
+
+	gi.modelindex("models/objects/gibs/head2/tris.md2");
+
+	//
+	// initialize stuff
+	//
+	I_Initialize();
+	D_Initialize();
+
+	//for (int i = -256; i <= 256; i += 32)
+	{
+		//for (int j = -64; j <= 64; j += 32)
+		{
+			for (int k = -128; k <= 128; k += 32)
+			{
+				detail_edict_t *head = D_Spawn();
+				head->s.modelindex = gi.modelindex("models/objects/gibs/head2/tris.md2");
+				head->classname = "detail_head";
+				VectorSet(head->s.origin, 0, k, 0);
+			}
+		}
+	}
+
+
 
 	//
 	// Setup light animation tables. 'a' is total darkness, 'z' is doublebright.

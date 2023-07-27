@@ -182,6 +182,26 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 
 	pm.cmd = *ucmd;
 
+	// walk slower if in inventory (not a problem since we disable prediction anyway
+	if (client->inv_open)
+	{
+		float dist;
+		vec3_t move;
+		VectorSet(move, pm.cmd.forwardmove, pm.cmd.sidemove, pm.cmd.upmove);
+		if (move[2] > 0) // no jumps! we're inventorying here
+			move[2] = 0;
+
+		dist = VectorNormalize(move);
+		if (dist > 150)
+			dist = 150;
+		VectorScale(move, dist, move);
+
+		pm.cmd.forwardmove = move[0];
+		pm.cmd.sidemove = move[1];
+		pm.cmd.upmove = move[2];
+	}
+	//
+
 	pm.trace = PM_trace;    // adds default parms
 	pm.pointcontents = gi.pointcontents;
 
@@ -226,6 +246,14 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 		VectorCopy(pm.viewangles, client->v_angle);
 		VectorCopy(pm.viewangles, client->ps.viewangles);
 	}
+
+	// decide if prediction should stay on
+	client->ps.pmove.pm_flags &= ~PMF_NO_PREDICTION;
+	if (client->inv_open)
+	{
+		client->ps.pmove.pm_flags |= PMF_NO_PREDICTION;
+	}
+	//
 
 	gi.linkentity(ent);
 }
@@ -327,6 +355,11 @@ Called for each player at the end of the server frame
 and right after spawning
 =================
 */
+#define CH_DEFAULT		100
+#define CH_INTERACT		70
+#define CH_PICKUP		20
+#define CH_INVENTORY	5
+
 void ClientEndServerFrame(edict_t *ent)
 {
 	gclient_t *client = ent->client;
@@ -336,6 +369,14 @@ void ClientEndServerFrame(edict_t *ent)
 	
 	client->ps.fov = client->pers.fov;
 	VectorSet(client->ps.viewoffset, 0, 0, ent->viewheight);
+
+	// gun model
+	client->ps.gunindex = gi.modelindex("models/weapons/v_pickaxe.md2");
+	if (ent->client->inv_open)
+	{
+		client->ps.gunindex = 0;
+	}
+
 
 	// set gun position
 	if (client->ps.pmove.pm_flags & PMF_DUCKED)
@@ -352,10 +393,20 @@ void ClientEndServerFrame(edict_t *ent)
 	VectorMA(client->ps.gunoffset, -1, forward, client->ps.gunoffset);
 	//
 
-	//
-	ent->client->ps.stats[STAT_HEALTH] = 70;
+	// crosshair colors
+	if (ent->client->inv_open)
+	{
+		ent->client->ps.stats[STAT_HEALTH] = CH_INVENTORY;
+	}
+	else
+	{
+		ent->client->ps.stats[STAT_HEALTH] = CH_DEFAULT;
+	}
 	//
 
+	// generate detail queue
+	D_GenerateQueue(ent);
+	client->detail_current = client->detail_queue; // reset for our reserved ents to loop through
 }
 
 
