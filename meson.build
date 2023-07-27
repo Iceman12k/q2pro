@@ -106,6 +106,7 @@ server_src = [
   'src/server/world.c',
 ]
 
+if false
 game_src = [
   'src/baseq2/g_ai.c',
   'src/baseq2/g_chase.c',
@@ -155,8 +156,19 @@ game_src = [
   'src/baseq2/p_view.c',
   'src/baseq2/p_weapon.c',
   'src/shared/m_flash.c',
+]
+else
+game_src = [
+  'src/huntrpg/g_main.c',
+  'src/huntrpg/g_svcmds.c',
+  'src/huntrpg/g_svmain.c',
+  'src/huntrpg/g_world.c',
+  'src/huntrpg/g_spawn.c',
+  'src/huntrpg/p_base.c',
+  'src/huntrpg/p_cmd.c',
   'src/shared/shared.c',
 ]
+endif
 
 cc = meson.get_compiler('c')
 

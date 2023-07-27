@@ -83,12 +83,12 @@ option('mvd-server',
 
 option('ogg',
   type: 'feature',
-  value: 'auto',
+  value: 'enabled',
   description: 'Ogg Vorbis music and sound effects support')
 
 option('openal',
   type: 'feature',
-  value: 'auto',
+  value: 'enabled',
   description: 'OpenAL sound backend')
 
 option('packetdup-hack',
@@ -133,7 +133,7 @@ option('tga',
 
 option('variable-fps',
   type: 'boolean',
-  value: false,
+  value: true,
   description: 'Support for variable server FPS in both client and server')
 
 option('vid-geometry',
