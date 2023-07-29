@@ -166,9 +166,21 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 	memset(&pm, 0, sizeof(pm));
 
 	client->ps.pmove.pm_type = PM_NORMAL;
+	
+	if (client->inv_open)
+	{
+		I_Input(ent, ucmd);
+	}
+
+	client->cmd_buttons = ucmd->buttons;
+
+	for (i = 0; i < 3; i++) {
+		client->cmd_angles[i] = SHORT2ANGLE(ucmd->angles[i]);
+	}
 
 	client->ps.pmove.gravity = sv_gravity->value;
 	pm.s = client->ps.pmove;
+
 
 	for (i = 0; i < 3; i++) {
 		pm.s.origin[i] = COORD2SHORT(ent->s.origin[i]);
@@ -362,6 +374,7 @@ and right after spawning
 
 void ClientEndServerFrame(edict_t *ent)
 {
+	vec3_t forward, right, up;
 	gclient_t *client = ent->client;
 
 	if (!client)
@@ -388,25 +401,36 @@ void ClientEndServerFrame(edict_t *ent)
 		VectorSet(client->ps.gunoffset, 0, 0, 0);
 	}
 
-	vec3_t forward, right, up;
 	AngleVectors(client->ps.viewangles, forward, right, up);
 	VectorMA(client->ps.gunoffset, -1, forward, client->ps.gunoffset);
 	//
 
 	// crosshair colors
-	if (ent->client->inv_open)
+	if (client->inv_open)
 	{
-		ent->client->ps.stats[STAT_HEALTH] = CH_INVENTORY;
+		if (client->inv_highlighted == -1)
+			client->ps.stats[STAT_HEALTH] = CH_INTERACT;
+		else
+			client->ps.stats[STAT_HEALTH] = CH_INVENTORY;
 	}
 	else
 	{
-		ent->client->ps.stats[STAT_HEALTH] = CH_DEFAULT;
+		client->ps.stats[STAT_HEALTH] = CH_DEFAULT;
 	}
 	//
 
 	// generate detail queue
-	D_GenerateQueue(ent);
-	client->detail_current = client->detail_queue; // reset for our reserved ents to loop through
+	if (KEYFRAME(level.framenum))
+	{
+		D_GenerateQueue(ent);
+	}
+
+	// send new hud
+	H_Update(ent, client);
+	
+	//AngleVectors(client->ps.viewangles, forward, right, up);
+	//VectorMA(client->ps.viewoffset, -32, forward, client->ps.viewoffset);
+	//VectorMA(client->ps.viewoffset, 48, up, client->ps.viewoffset);
 }
 
 

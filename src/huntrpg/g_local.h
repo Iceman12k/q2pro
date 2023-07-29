@@ -25,12 +25,13 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // because we define the full size ones in this file
 #define GAME_INCLUDE
 #include "shared/game.h"
+#include "inventory.h"
 
 // features this game supports
 #define G_FEATURES  (GMF_PROPERINUSE|GMF_WANT_ALL_DISCONNECTS|GMF_ENHANCED_SAVEGAMES|GMF_VARIABLE_FPS)
 
 // the "gameversion" client command will print this plus compile date
-#define GAMEVERSION "baseq2"
+#define GAMEVERSION "huntrpg"
 
 // protocol bytes that can be directly added to messages
 #define svc_muzzleflash     1
@@ -39,6 +40,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define svc_layout          4
 #define svc_inventory       5
 #define svc_stufftext       11
+#define svc_configstring	13
 
 #define TAG_GAME    765     // clear when unloading the dll
 #define TAG_LEVEL   766     // clear when loading a new level
@@ -75,6 +77,19 @@ typedef edict_t edict_s;
 typedef detail_edict_t detail_edict_s;
 typedef detail_list_t detail_list_s;
 
+#define HUD_MAX_SIZE			4096
+
+#define MAX_DETAILS				8192
+#define RESERVED_DETAILEDICTS	96
+#define DETAIL_BUCKETS			100
+#define DETAIL_MAXRANGE			(1024 * 1024)
+
+#define DETAIL_PRIORITY_LOW		0x01
+#define DETAIL_PRIORITY_HIGH	0x02
+#define DETAIL_PRIORITY_MAX		0x03
+#define DETAIL_NOLIMIT			0x04
+#define DETAIL_NEARLIMIT		0x08
+
 struct detail_edict_s {
 	// detail entity (non collision, but still just as important!) we allocate
 	// these separately, and have a render queue that sends the closest ones
@@ -82,16 +97,26 @@ struct detail_edict_s {
 	entity_state_t s;
 	qboolean isused;
 
-	vec3_t old_origin[MAX_CLIENTS];
-
+	// class
 	char *classname;
 	float(*predraw)(edict_t *v, detail_edict_t *e, entity_state_t *s);
+
+	// used for mapping to a real edict
+	int	valid;
+	int	mapped;
+
+	// for LOD options
+	short detailflags;
+
+	// begin fields
+	vec3_t movedir;
 };
 
 struct detail_list_s {
 	detail_edict_t *e; // actual detail edict we're rendering
 	int				score; // score for priority queue sorting
 	detail_list_t *next;
+	detail_list_t *next_list;
 };
 
 
@@ -200,6 +225,8 @@ struct gclient_s {
 	client_persistant_t pers;
 	pmove_state_t       old_pmove;  // for detecting out-of-pmove changes
 	vec3_t				v_angle;    // aiming direction
+	vec3_t				cmd_angles;
+	int					cmd_buttons;
 
 #define FLOOD_MSGS  10
 	float       flood_locktill;             // locked from talking
@@ -209,8 +236,14 @@ struct gclient_s {
 	qboolean	inv_open;
 	float		inv_angle;
 
-	detail_list_t *detail_queue;
-	detail_list_t *detail_current;
+	item_t		*inv_content[INVEN_WIDTH * INVEN_HEIGHT];
+	int			inv_highlighted;
+	int			inv_selected;
+
+	detail_list_t *detail_bucket[DETAIL_BUCKETS];
+	
+	int			hud_updateframe;
+	char		hud_oldstring[HUD_MAX_SIZE]; // for diff checking
 };
 
 struct edict_s {
@@ -359,6 +392,7 @@ extern  cvar_t  *flood_waitdelay;
 //
 // g_main.c
 //
+void* WriteData(const void *data, size_t len);
 void ClientEndServerFrames(void);
 
 //
@@ -408,6 +442,12 @@ void ClientCommand(edict_t *ent);
 // p_inventory.c
 //
 void I_Initialize(void);
+void I_Input(edict_t *ent, usercmd_t *ucmd);
+
+//
+// p_hud.c
+//
+void H_Update(edict_t *ent, gclient_t *client);
 
 //
 // e_detail.c

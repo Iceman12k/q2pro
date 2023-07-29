@@ -30,9 +30,19 @@ cvar_t  *sv_gravity;
 cvar_t  *sv_maxvelocity;
 
 
-// this is only here so the functions in q_shared.c can link
 extension_func_t *g_extension_funcs;
+void*(*engine_MSG_WriteData)(const void *data, size_t len);
 
+void* WriteData(const void *data, size_t len)
+{
+	if (!engine_MSG_WriteData)
+		return NULL;
+
+	return engine_MSG_WriteData(data, len);
+}
+
+
+// this is only here so the functions in q_shared.c can link
 void Com_LPrintf(print_type_t type, const char *fmt, ...)
 {
 	va_list     argptr;
@@ -136,7 +146,11 @@ q_exported game_export_ex_t *GetExtendedGameAPI(game_import_ex_t *importx)
 
 #ifdef GAME_API_EXTENSIONS
 	G_InitExtEntrypoints();
+
+	engine_MSG_WriteData = gix.CheckForExtension("MSG_WriteData");
 #endif
+
+
 
 	return &globalsx;
 }
