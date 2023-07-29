@@ -167,6 +167,7 @@ game_src = [
   'src/huntrpg/p_base.c',
   'src/huntrpg/p_cmd.c',
   'src/huntrpg/p_inventory.c',
+  'src/huntrpg/p_hud.c',
   'src/huntrpg/e_detail.c',
   'src/shared/shared.c',
 ]
