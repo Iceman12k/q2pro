@@ -825,6 +825,7 @@ void G_InitializeExtensions(void)
 	// client networking info
 	g_addextension("Client_GetVersion", G_Ext_Client_GetVersion);
 	g_addextension("Client_GetProtocol", G_Ext_Client_GetProtocol);
+	g_addextension("MSG_WriteData", MSG_WriteData);
 }
 //
 #else
