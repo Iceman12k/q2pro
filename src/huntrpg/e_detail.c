@@ -1,37 +1,36 @@
 
 #include "g_local.h"
 
-#define MAX_DETAILS				8192
-#define RESERVED_DETAILEDICTS	256
-
 detail_edict_t detail_ents[MAX_DETAILS];
 edict_t *detail_reserved[RESERVED_DETAILEDICTS];
+detail_edict_t *detail_map[MAX_CLIENTS][RESERVED_DETAILEDICTS];
 
-static float D_Predraw(edict_t *v, edict_t *e, entity_state_t *s)
+static float D_Predraw(edict_t *v, edict_t *ref, entity_state_t *s)
 {
 	int successful = true;
-	int clientnum = g_edicts - v;
-	gclient_t *client = v->client;
-	detail_list_t *entry = client->detail_current;
-	if (!entry)
+	int clientnum = v - g_edicts;
+	//gclient_t *client = v->client;
+	detail_edict_t *entry = detail_map[clientnum][ref->health];//client->detail_current;
+	if (!entry || clientnum < 0)
 		return false;
 
-
 	// increment seek in the queue
-	client->detail_current = entry->next;
+	//client->detail_current = entry->next;
 	//
 	
 	// find the proper origin
 	int hold_num = s->number;
-	*s = entry->e->s;
-	VectorCopy(entry->e->old_origin[clientnum], s->old_origin);
+	*s = entry->s;
 
-	if (entry->e->predraw)
-		successful = entry->e->predraw(v, entry->e, s);
+	//VectorCopy(entry->old_origin[clientnum], s->old_origin);
+
+	if (entry->predraw)
+		successful = entry->predraw(v, entry, s);
 	//
 
 	// save our current origin out for next time
-	//VectorCopy(s->origin, entry->e->old_origin[clientnum]);
+	//VectorCopy(s->origin, entry->old_origin[clientnum]);
+	VectorCopy(s->origin, s->old_origin);
 	//
 
 	s->number = hold_num;
@@ -47,6 +46,7 @@ void D_Initialize(void)
 		edict_t *res = G_Spawn();
 		detail_reserved[i] = res; // add to the reserved list
 		
+		res->health = i;
 		res->s.renderfx = RF_DEPTHHACK;
 		res->s.modelindex = null_model;
 		res->predraw = D_Predraw;
@@ -54,41 +54,80 @@ void D_Initialize(void)
 	}
 }
 
-static void D_InsertToQueue(detail_list_t **list, detail_list_t *entry)
+static void D_InsertToQueue(gclient_t *client, detail_list_t *entry)
 {
-	detail_list_t *queue = *list;
+	int bucket = (int)(entry->score / (DETAIL_MAXRANGE / DETAIL_BUCKETS));
+	//clamp(bucket, 0, (DETAIL_BUCKETS - 1));
+	if (bucket < 0)
+		bucket = 0;
+	else if (bucket >= DETAIL_BUCKETS)
+		bucket = DETAIL_BUCKETS - 1;
 
-	if (queue) // if we have a queue started, add it in
+	detail_list_t *list = client->detail_bucket[bucket];
+
+	if (!list)
+		client->detail_bucket[bucket] = entry;
+#if 1
+	else if (bucket >= DETAIL_BUCKETS * 0.9) // we don't care much about sorting very far away ents
 	{
-		if (queue->score > entry->score)
+		entry->next = list;
+		client->detail_bucket[bucket] = entry;
+	}
+#endif
+	else // yuck, we need to do some sorting!
+	{
+		detail_list_t *hold = NULL;
+		while (list)
 		{
-			entry->next = queue;
-			*list = entry;
-		}
-		else
-		{
-			detail_list_t *hold = queue;
-			while (queue)
+			if (list->score < entry->score)
 			{
-				if (queue->score < entry->score)
-				{
-					hold = queue;
-					queue = queue->next;
-					continue;
-				}
-				
-				hold->next = entry;
-				entry->next = queue;
-				return;
+				hold = list;
+				list = list->next;
+				continue;
 			}
 
-			hold->next = entry; // we are the worstestest
+			if (hold)
+				hold->next = entry;
+			else
+				client->detail_bucket[bucket] = entry;
+			entry->next = list;
+			return;
 		}
+
+		hold->next = entry; // we are the worstestest
+	}
+
+	//entry->next_list = client->detail_queue;
+
+	/*
+	detail_list_t *queue = client->detail_queue;
+	if (queue) // if we have a queue started, add it in
+	{
+		detail_list_t *hold = NULL;
+		while (queue)
+		{
+			if (queue->score < entry->score)
+			{
+				hold = queue;
+				queue = queue->next;
+				continue;
+			}
+			
+			if (hold)
+				hold->next = entry;
+			else
+				client->detail_queue = entry;
+			entry->next = queue;
+			return;
+		}
+
+		hold->next = entry; // we are the worstestest
 	}
 	else
 	{
-		*list = entry;
+		client->detail_queue = entry;
 	}
+	*/
 }
 
 void D_GenerateQueue(edict_t *ent)
@@ -97,7 +136,15 @@ void D_GenerateQueue(edict_t *ent)
 	if (!client)
 		return;
 	
-	// cleanup old queue
+	int clientnum = ent - g_edicts;
+	detail_edict_t *oldmap[RESERVED_DETAILEDICTS];
+	memcpy(oldmap, detail_map[clientnum], sizeof(oldmap));
+	memset(detail_map[clientnum], 0, sizeof(detail_map[clientnum]));
+
+
+	detail_list_t *lst;
+	// cleanup old buckets
+	/*
 	detail_list_t *lst = client->detail_queue;
 	while (lst)
 	{
@@ -105,8 +152,22 @@ void D_GenerateQueue(edict_t *ent)
 		lst = lst->next;
 		gi.TagFree(cleanup);
 	}
+	*/
 
-	client->detail_queue = NULL;
+	for (int i = 0; i < DETAIL_BUCKETS; i++)
+	{
+		lst = client->detail_bucket[i];
+		while (lst)
+		{
+			detail_list_t *cleanup = lst;
+			lst = lst->next;
+			gi.TagFree(cleanup);
+		}
+		client->detail_bucket[i] = NULL;
+	}
+
+	//client->detail_queue = NULL;
+	//client->detail_current = NULL;
 	//
 
 	// set camera pos
@@ -120,20 +181,105 @@ void D_GenerateQueue(edict_t *ent)
 	{
 		vec3_t diff;
 		detail_edict_t *detail = &detail_ents[i];
+		detail->valid = false; // mark as invalid for now
+
 		if (!detail->isused)
 			continue;
 
 		VectorSubtract(camera_pos, detail->s.origin, diff);
 		float score = VectorLengthSquared(diff);
+		float scorelimit = DETAIL_MAXRANGE;
 
-		if (score > 65536)
+		if (detail->detailflags & DETAIL_NEARLIMIT)
+			scorelimit *= 0.25;
+
+		if (score > DETAIL_MAXRANGE && !(detail->detailflags & DETAIL_NOLIMIT))
 			continue;
+
+		if ((detail->detailflags & DETAIL_PRIORITY_MAX) == DETAIL_PRIORITY_MAX)
+			score = 0;
+		else if (detail->detailflags & DETAIL_PRIORITY_HIGH)
+			score *= 0.3;
+		else if (detail->detailflags & DETAIL_PRIORITY_LOW)
+			score *= 2;
 
 		detail_list_t *entry = gi.TagMalloc(sizeof(detail_list_t), TAG_LEVEL);
 		entry->score = score;
 		entry->e = detail;
 		entry->next = NULL;
-		D_InsertToQueue(&client->detail_queue, entry);
+		entry->next_list = NULL;
+
+		//entry->next = client->detail_queue;
+		//client->detail_queue = entry;
+		D_InsertToQueue(client, entry);
+	}
+
+	// mark the first (RESERVED_DETAILEDICTS) as sendable, so we can find them a home
+	
+	/*
+	lst = client->detail_queue;
+	for (int i = 0; lst && i < RESERVED_DETAILEDICTS; i++, lst = lst->next_list)
+	{
+		lst->e->valid = true;
+		lst->e->mapped = false;
+	}
+	*/
+
+	for (int i = 0, cnt = 0; i < DETAIL_BUCKETS; i++)
+	{
+		for (lst = client->detail_bucket[i]; lst; lst = lst->next)
+		{
+			cnt++;
+
+			if (cnt >= RESERVED_DETAILEDICTS)
+				break;
+
+			lst->e->valid = true;
+			lst->e->mapped = false;
+		}
+
+		if (cnt >= RESERVED_DETAILEDICTS)
+			break;
+	}
+
+#if 1
+	for (int i = 0; i < RESERVED_DETAILEDICTS; i++)
+	{
+		detail_edict_t *old_d = oldmap[i];
+		if (!old_d)
+			continue;
+
+		if (!old_d->valid)
+			continue;
+
+		old_d->mapped = true;
+		detail_map[clientnum][i] = old_d;
+	}
+#endif
+
+	for (int i = 0; i < RESERVED_DETAILEDICTS; i++)
+	{
+		if (detail_map[clientnum][i] != NULL)
+			continue;
+
+		if (oldmap[i] != NULL)
+			continue;
+		
+		for (int j = 0; j < DETAIL_BUCKETS; j++)
+		{
+			if (detail_map[clientnum][i] != NULL)
+				break;
+
+			for (lst = client->detail_bucket[j]; lst; lst = lst->next)
+			{
+				if (lst->e->valid && !lst->e->mapped)
+				{
+					lst->e->mapped = true;
+					detail_map[clientnum][i] = lst->e;
+					break;
+				}
+			}
+		}
 	}
 }
 
@@ -152,6 +298,8 @@ detail_edict_t* D_Spawn(void)
 		return detail;
 	}
 
+	memset(&detail_ents[0], 0, sizeof(detail_edict_t));
+	detail_ents[0].isused = true;
 	return &detail_ents[0]; // uh oh... we have a LOT of details
 }
 
