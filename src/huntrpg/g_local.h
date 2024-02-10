@@ -45,6 +45,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define TAG_GAME    765     // clear when unloading the dll
 #define TAG_LEVEL   766     // clear when loading a new level
 
+extern const char *downloadlist[];
+extern const int downloadlist_size;
+
 //
 // fields are needed for spawning from the entity string
 // and saving / loading games
@@ -77,18 +80,15 @@ typedef edict_t edict_s;
 typedef detail_edict_t detail_edict_s;
 typedef detail_list_t detail_list_s;
 
+#define DEAD_NO					0
+#define DEAD_DEAD				1
+
 #define HUD_MAX_SIZE			4096
 
-#define MAX_DETAILS				8192
-#define RESERVED_DETAILEDICTS	96
-#define DETAIL_BUCKETS			100
-#define DETAIL_MAXRANGE			(1024 * 1024)
-
-#define DETAIL_PRIORITY_LOW		0x01
-#define DETAIL_PRIORITY_HIGH	0x02
-#define DETAIL_PRIORITY_MAX		0x03
-#define DETAIL_NOLIMIT			0x04
-#define DETAIL_NEARLIMIT		0x08
+typedef struct {
+	int frame1;
+	int frame2;
+} md3anim_t;
 
 struct detail_edict_s {
 	// detail entity (non collision, but still just as important!) we allocate
@@ -99,16 +99,25 @@ struct detail_edict_s {
 
 	// class
 	char *classname;
+	edict_t *owner;
 	float(*predraw)(edict_t *v, detail_edict_t *e, entity_state_t *s);
+	float(*physics)(detail_edict_t *e);
 
 	// used for mapping to a real edict
+	uint8_t mapped_to[MAX_CLIENTS];
 	int	valid;
 	int	mapped;
+	//vec3_t old_origin[MAX_CLIENTS];
 
 	// for LOD options
 	short detailflags;
 
+	// for md3 models
+	md3anim_t md3anim;
+
 	// begin fields
+	int type;
+	float angle;
 	vec3_t movedir;
 };
 
@@ -119,6 +128,8 @@ struct detail_list_s {
 	detail_list_t *next_list;
 };
 
+extern detail_edict_t detail_ents[];
+#include "detail.h"
 
 #define FOFS(x) q_offsetof(edict_t, x)
 #define STOFS(x) q_offsetof(spawn_temp_t, x)
@@ -216,6 +227,14 @@ typedef struct {
 
 // this structure is cleared on each PutClientInServer(),
 // except for 'client->pers'
+enum clientdetail_e {
+	CD_HEAD,
+	CD_TORSO,
+	CD_LEGS,
+	CD_WEAPON,
+	CD_MAX
+};
+
 struct gclient_s {
 	// known to server
 	player_state_t  ps;             // communicated by server to clients
@@ -228,22 +247,47 @@ struct gclient_s {
 	vec3_t				cmd_angles;
 	int					cmd_buttons;
 
+	float				time; // the "time" of the client, incremented by ucmd->msec
+	int					download_cooldown; // when should we poke the client for the next asset download?
+	int					download_progress;
+
 #define FLOOD_MSGS  10
 	float       flood_locktill;             // locked from talking
 	float       flood_when[FLOOD_MSGS];     // when messages were said
 	int         flood_whenhead;             // head pointer for when said
 
+	qboolean	hotbar_open;
+	int			hotbar_selected;
+	float		hotbar_raisetime;
+	float		hotbar_animtime;
+
 	qboolean	inv_open;
 	float		inv_angle;
 
-	item_t		*inv_content[INVEN_WIDTH * INVEN_HEIGHT];
+	item_t		*inv_content[INVEN_TOTALSLOTS];
 	int			inv_highlighted;
 	int			inv_selected;
 
 	detail_list_t *detail_bucket[DETAIL_BUCKETS];
 	
+	int			passive_flags;
+
+	// hud
+	int			hud_lastsync; // sometimes we need to resend just for insurance (or because client may have downloaded a missing asset)
 	int			hud_updateframe;
 	char		hud_oldstring[HUD_MAX_SIZE]; // for diff checking
+
+	// environment
+	int			light_lastsync;
+	char		light_oldvalue;
+	int			skybox_lastsync;
+	char		skybox_oldvalue;
+
+	// detail ents
+	uint64_t chunks_visible;
+	detailusagefield_t detail_sent_to_client;
+	detailedictfield_t detail_edict_in_use;
+	detail_edict_t *details[CD_MAX];
 };
 
 struct edict_s {
@@ -336,7 +380,7 @@ struct edict_s {
 
 	// rpg stuff
 	float		(*predraw)(edict_t *v, edict_t *e, entity_state_t *s);
-
+	float		(*physics)(edict_t *e);
 };
 
 
@@ -396,6 +440,17 @@ void* WriteData(const void *data, size_t len);
 void ClientEndServerFrames(void);
 
 //
+// g_utils.c 
+//
+#define bound(a,b,c) ((a) >= (c) ? (a) : (b) < (a) ? (a) : (b) > (c) ? (c) : (b))
+float vectoyaw(vec3_t vec);
+void MatrixMultiply(float in1[3][3], float in2[3][3], float out[3][3]);
+void vectoangles2(vec3_t angles, const vec3_t forward, const vec3_t up, qboolean flippitch);
+void vectoangles(vec3_t value1, vec3_t angles);
+int anglediff(int x, int y);
+
+
+//
 // g_svcmds.c
 //
 void ServerCommand(void);
@@ -439,6 +494,12 @@ void ClientBegin(edict_t *ent);
 void ClientCommand(edict_t *ent);
 
 //
+// p_detail.c
+//
+void CL_DetailCreate(edict_t *ent);
+void CL_DetailCleanup(edict_t *ent);
+
+//
 // p_inventory.c
 //
 void I_Initialize(void);
@@ -456,7 +517,14 @@ void D_Initialize(void);
 void D_GenerateQueue(edict_t *ent);
 detail_edict_t* D_Spawn(void);
 void D_Free(detail_edict_t *detail);
+void Scene_Generate(edict_t *viewer);
+actor_t *Actor_Spawn(void);
 
 //
+// g_environment
 //
-//
+void Environment_Update(void);
+void Environment_GetTime(int *hour, int *minute, char *title, size_t len);
+void Environment_ClientUpdate(edict_t *ent);
+
+

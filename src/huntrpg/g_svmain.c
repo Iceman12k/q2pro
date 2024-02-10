@@ -28,16 +28,32 @@ void CheckNeedPass(void)
 
 void G_RunEntity(edict_t *ent)
 {
+	if (ent->physics)
+	{
+		if (ent->physics(ent))
+			return;
+	}
+}
 
+void G_RunDetail(detail_edict_t *ent)
+{
+	if (ent->physics)
+	{
+		if (ent->physics(ent))
+			return;
+	}
 }
 
 void G_RunFrame(void)
 {
 	int     i;
 	edict_t *ent;
+	detail_edict_t *det;
 
 	level.framenum++;
 	level.time = level.framenum * FRAMETIME;
+
+	Environment_Update();
 
 	//
 	// treat each object in turn
@@ -68,6 +84,14 @@ void G_RunFrame(void)
 		}
 
 		G_RunEntity(ent);
+	}
+
+	det = &detail_ents[0];
+	for (i = 0; i < MAX_DETAILS; i++, det++) {
+		if (!det->isused)
+			continue;
+
+		G_RunDetail(det);
 	}
 
 	// see if needpass needs updated

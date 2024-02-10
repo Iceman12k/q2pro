@@ -13,9 +13,11 @@ typedef struct {
 } spawn_field_t;
 
 void SP_worldspawn(edict_t *ent);
+void SP_func_illusionary(edict_t *ent);
 
 static const spawn_func_t spawn_funcs[] = {
 	{"worldspawn", SP_worldspawn},
+	{"func_illusionary", SP_func_illusionary},
 
 	{NULL, NULL}
 };

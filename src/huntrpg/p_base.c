@@ -18,6 +18,8 @@ void ClientUserinfoChanged(edict_t *ent, char *userinfo)
 	char    *s;
 	int     playernum;
 
+	Com_Printf("%s\n", userinfo);
+
 	// check for malformed or illegal info strings
 	if (!Info_Validate(userinfo)) {
 		strcpy(userinfo, "\\name\\badinfo\\skin\\male/grunt");
@@ -111,6 +113,9 @@ void ClientDisconnect(edict_t *ent)
 
 	gi.bprintf(PRINT_HIGH, "%s disconnected\n", ent->client->pers.netname);
 
+	// cleanup detail ents
+	CL_DetailCleanup(ent);
+
 	// send effect
 	if (ent->inuse) {
 		gi.WriteByte(svc_muzzleflash);
@@ -161,6 +166,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 	client = ent->client;
 
 	pm_passent = ent;
+	client->time += (float)ucmd->msec / 1000;
 
 	// set up for pmove
 	memset(&pm, 0, sizeof(pm));
@@ -267,6 +273,50 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 	}
 	//
 
+	// client item physics
+	if (client->hotbar_selected < INVEN_HOTBAR_START || client->hotbar_selected >= INVEN_TOTALSLOTS) // bounds check
+		client->hotbar_selected = INVEN_HOTBAR_START;
+
+	item_t *item = client->inv_content[client->hotbar_selected];
+	if (!item || !client->hotbar_open)
+	{
+		client->ps.gunindex = 0;
+	}
+	else
+	{
+		int old_ind = client->ps.gunindex;
+		client->ps.gunindex = gi.modelindex(item->viewmodel);
+
+		if (old_ind != client->ps.gunindex)
+		{
+			client->hotbar_raisetime = level.framenum + game.framediv;// client->time + 0.2;
+		}
+	}
+	//
+
+	// debug
+	// debug chunks
+	#if 0
+	Com_Printf("\n\nDetail bitboards: %i\n", __builtin_ctz(0b000010));
+	for(int i = 0; i < CHUNK_HEIGHT; i++)
+	{
+		for(int j = 0; j < CHUNK_WIDTH; j++)
+		{
+			uint64_t bit = 1ULL << (j + (i << 3ULL));// + (i << 3));
+			if (client->chunks_visible & bit)
+			{
+				Com_Printf("X");
+			}
+			else
+			{
+				Com_Printf("O");
+			}
+		}
+		Com_Printf("\n");
+	}
+	#endif
+	//
+
 	gi.linkentity(ent);
 }
 
@@ -287,6 +337,13 @@ void PutClientInServer(edict_t *ent)
 
 	ent->s.modelindex = gi.modelindex("models/null.md2");
 	client->ps.gunindex = gi.modelindex("models/weapons/v_pickaxe.md2");
+
+	client->inv_content[0] = &lantern;
+	client->inv_content[INVEN_HOTBAR_START] = &pickaxe;
+	//client->hotbar_open = true;
+	client->hotbar_selected = INVEN_HOTBAR_START;
+
+	CL_DetailCreate(ent);
 }
 
 /*
@@ -307,6 +364,18 @@ void ClientBegin(edict_t *ent)
 	gi.WriteByte(svc_stufftext);
 	gi.WriteString("cl_maxpackets 60\n");
 	gi.unicast(ent, true);
+
+	gi.WriteByte(svc_stufftext);
+	gi.WriteString("bind mwheelup invprev\nbind mwheeldown invnext\nbind 1 invuse 1\nbind 2 invuse 2\nbind 3 invuse 3\nbind 4 invuse 4\nbind 5 invuse 5\n");
+	gi.unicast(ent, true);
+
+	gi.WriteByte(svc_stufftext);
+	gi.WriteString("bind tab inventory\nbind q inv_open\n");
+	gi.unicast(ent, true);
+
+	// initialize our janky download system
+	ent->client->download_cooldown = level.framenum + game.framediv;
+	ent->client->download_progress = 0;
 	//
 
 	// if there is already a body waiting for us (a loadgame), just
@@ -384,7 +453,7 @@ void ClientEndServerFrame(edict_t *ent)
 	VectorSet(client->ps.viewoffset, 0, 0, ent->viewheight);
 
 	// gun model
-	client->ps.gunindex = gi.modelindex("models/weapons/v_pickaxe.md2");
+	//client->ps.gunindex = gi.modelindex("models/weapons/v_pickaxe.md2");
 	if (ent->client->inv_open)
 	{
 		client->ps.gunindex = 0;
@@ -403,6 +472,15 @@ void ClientEndServerFrame(edict_t *ent)
 
 	AngleVectors(client->ps.viewangles, forward, right, up);
 	VectorMA(client->ps.gunoffset, -1, forward, client->ps.gunoffset);
+
+	if (client->ps.gunindex == 0)
+		client->ps.gunoffset[2] = -4;
+
+	if (level.framenum <= client->hotbar_raisetime)
+	{
+		float frac = ((float)(client->hotbar_raisetime - level.framenum) / game.framediv);
+		client->ps.gunoffset[2] -= 4 * frac;
+	}
 	//
 
 	// crosshair colors
@@ -419,18 +497,59 @@ void ClientEndServerFrame(edict_t *ent)
 	}
 	//
 
+	client->chunks_visible = ~0ULL;
+
 	// generate detail queue
 	if (KEYFRAME(level.framenum))
 	{
-		D_GenerateQueue(ent);
+		//D_GenerateQueue(ent);
+		Scene_Generate(ent);
+	}
+
+	// passive item flags
+	client->passive_flags = 0;
+	for (int i = INVEN_HOTBAR_START; i < INVEN_TOTALSLOTS; i++)
+	{
+		item_t *item = client->inv_content[i];
+		if (!item)
+			continue;
+
+		client->passive_flags |= item->passive_flags;
 	}
 
 	// send new hud
 	H_Update(ent, client);
+
+	// environment update
+	Environment_ClientUpdate(ent);
+
+	ent->s.effects &= EF_HYPERBLASTER;
+	if (client->passive_flags & PASSIVE_LIGHT)
+	{
+		ent->s.effects |= EF_HYPERBLASTER;
+	}
 	
 	//AngleVectors(client->ps.viewangles, forward, right, up);
 	//VectorMA(client->ps.viewoffset, -32, forward, client->ps.viewoffset);
 	//VectorMA(client->ps.viewoffset, 48, up, client->ps.viewoffset);
+
+	if (ent->client->download_progress >= 0)
+	{
+		if (level.framenum >= ent->client->download_cooldown)
+		{
+			char cmd[256];
+			Q_snprintf(cmd, sizeof(cmd), "download %s\n", downloadlist[ent->client->download_progress]);
+			gi.WriteByte(svc_stufftext);
+			gi.WriteString(cmd);
+			gi.unicast(ent, true);
+
+			ent->client->download_progress++;
+			if (ent->client->download_progress >= downloadlist_size)
+				ent->client->download_progress = -1;
+
+			ent->client->download_cooldown = level.framenum + (game.framediv * 5);
+		}
+	}
 }
 
 

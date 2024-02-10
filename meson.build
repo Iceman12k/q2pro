@@ -160,14 +160,18 @@ game_src = [
 else
 game_src = [
   'src/huntrpg/g_main.c',
+  'src/huntrpg/g_utils.c',
   'src/huntrpg/g_svcmds.c',
   'src/huntrpg/g_svmain.c',
   'src/huntrpg/g_world.c',
   'src/huntrpg/g_spawn.c',
+  'src/huntrpg/g_environment.c',
+  'src/huntrpg/g_md3.c',
   'src/huntrpg/p_base.c',
   'src/huntrpg/p_cmd.c',
   'src/huntrpg/p_inventory.c',
   'src/huntrpg/p_hud.c',
+  'src/huntrpg/p_detail.c',
   'src/huntrpg/e_detail.c',
   'src/shared/shared.c',
 ]

@@ -5,20 +5,37 @@
 #define INVEN_WIDTH		3
 #define INVEN_HEIGHT	4
 #define INVEN_HOTBAR	5
+#define INVEN_HOTBAR_START (INVEN_WIDTH * INVEN_HEIGHT)
+#define INVEN_TOTALSLOTS (INVEN_HOTBAR_START + INVEN_HOTBAR)
 
 #define INVEN_POS_TOP	-16
 #define INVEN_POS_LEFT	-24
 
-typedef struct {
+#define MAX_ITEMNAME	24
 
+#define HOTBAR_RAISETIME 0.2
+
+enum passiveflags_e
+{
+	PASSIVE_LIGHT = 1 << 0,
+
+};
+
+typedef struct {
+	char name[MAX_ITEMNAME];
+	char icon_model[MAX_QPATH];
+	char icon_image[MAX_QPATH];
+
+	int icon_frame;
+	int icon_skin;
+
+	char viewmodel[MAX_QPATH];
+	int passive_flags;
+
+	// actual attributes here
 } item_t;
 
-
-
-
-
-
-
-
+extern item_t pickaxe;
+extern item_t lantern;
 
 

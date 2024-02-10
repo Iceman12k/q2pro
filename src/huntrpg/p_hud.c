@@ -22,6 +22,78 @@ static hudjob_t* H_AllocJob(void)
 	return ret;
 }
 
+static void H_HotbarJob(edict_t *ent, gclient_t *client)
+{
+	hudjob_t *job = H_AllocJob();
+	char temp_s[HUD_JOB_SIZE];
+	job->s[0] = 0; // null terminate the end really quick
+
+	float frac = ((ent->client->hotbar_animtime - level.time) / HOTBAR_RAISETIME);
+	int hotbar_height = -256;
+	hotbar_height *= clamp(frac, 0, 1);
+
+	if (!client->hotbar_open)
+	{
+		Q_scnprintf(temp_s, HUD_JOB_SIZE,
+			// info block
+			S("xr -64")
+			S("yt %i")
+			S("picn %s")
+			,
+			hotbar_height,
+			"hotbarc"
+		);
+		Q_strlcat(job->s, temp_s, HUD_JOB_SIZE); temp_s[0] = 0;
+	}
+	else
+	{
+		Q_scnprintf(temp_s, HUD_JOB_SIZE,
+			// info block
+			S("xr -64")
+			S("yt %i")
+			S("picn %s")
+			,
+			hotbar_height,
+			"hotbar"
+		);
+		Q_strlcpy(job->s, temp_s, HUD_JOB_SIZE); temp_s[0] = 0;
+
+		for (int i = INVEN_HOTBAR_START; i < INVEN_TOTALSLOTS; i++)
+		{
+			if (client->hotbar_selected == i)
+			{
+				Q_scnprintf(temp_s, HUD_JOB_SIZE,
+					" "
+					S("xr %i")
+					S("yt %i")
+					S("picn %s")
+					,
+					-64,
+					hotbar_height + ((i - INVEN_HOTBAR_START) * 57),
+					"hotbars"
+				);
+				Q_strlcat(job->s, temp_s, HUD_JOB_SIZE); temp_s[0] = 0;
+			}
+
+			item_t *item = client->inv_content[i];
+			if (!item)
+				continue;
+
+			Q_scnprintf(temp_s, HUD_JOB_SIZE,
+				" "
+				S("xr %i")
+				S("yt %i")
+				S("picn %s")
+				,
+				-64 + 11,
+				hotbar_height + 6 + ((i - INVEN_HOTBAR_START) * 57),
+				item->icon_image
+			);
+			Q_strlcat(job->s, temp_s, HUD_JOB_SIZE); temp_s[0] = 0;
+		}
+	}
+}
+
 static void H_InventoryJob(edict_t *ent, gclient_t *client)
 {
 	if (client->inv_open == false)
@@ -29,15 +101,24 @@ static void H_InventoryJob(edict_t *ent, gclient_t *client)
 
 	//if (client->inv_highlighted[0] != 0 || client->inv_highlighted[1] != 0)
 	//	return;
-	if (client->inv_highlighted != 0)
+	if (client->inv_highlighted < 0)
+		return;
+
+	if (client->inv_content[client->inv_highlighted] == NULL)
 		return;
 
 	hudjob_t *job = H_AllocJob();
+	item_t *item = client->inv_content[client->inv_highlighted];
 
 	Q_scnprintf(job->s, HUD_JOB_SIZE,
 		// info block
 		S("xv 32")
 		S("yb -128")
+		S("picn %s")
+
+		// item pic
+		S("xv 46")
+		S("yb -114")
 		S("picn %s")
 
 		// text
@@ -47,25 +128,62 @@ static void H_InventoryJob(edict_t *ent, gclient_t *client)
 
 		// stat1
 		S("xv 106")
-		S("yb -99")
+		S("yb -101")
 		S("string2 \"%s: %i\"")
 
 		// stat2
 		S("xv 106")
-		S("yb -85")
+		S("yb -87")
 		S("string2 \"%s: %i\"")
 
 		// stat3
 		S("xv 106")
-		S("yb -71")
+		S("yb -73")
 		S("string2 \"%s: %i\"")
 		,
 		"infoblock",
-		"Pickaxe",
+		item->icon_image,
+		item->name,
 		"DMG", 5,
 		"SPD", 100,
 		"DUR", 32
 		);
+}
+
+static void H_ClockJob(edict_t *ent, gclient_t *client)
+{
+	hudjob_t *job = H_AllocJob();
+#if 0
+	int h, m;
+	Environment_GetTime(&h, &m);
+
+	Q_scnprintf(job->s, HUD_JOB_SIZE,
+		S("xl 8")
+		S("yb -16")
+		S("string %.2i:%.2i")
+		,
+		h,
+		m
+	);
+#else
+	int h, m;
+	char title[64];
+	Environment_GetTime(&h, &m, title, sizeof(title));
+
+	Q_scnprintf(job->s, HUD_JOB_SIZE,
+		S("xl 8")
+		S("yb -32")
+		S("string \"%.2i:%.2i\"")
+
+		S("xl 8")
+		S("yb -16")
+		S("string \"%s\"")
+		,
+		h,
+		m,
+		title
+	);
+#endif
 }
 
 void H_Update(edict_t *ent, gclient_t *client)
@@ -81,6 +199,8 @@ void H_Update(edict_t *ent, gclient_t *client)
 
 	// add jobs
 	H_InventoryJob(ent, client);
+	H_HotbarJob(ent, client);
+	H_ClockJob(ent, client);
 	//
 
 	// loop through jobs and add all our strings together
@@ -97,12 +217,25 @@ void H_Update(edict_t *ent, gclient_t *client)
 		}
 	}
 
-	if (memcmp(hudstr, client->hud_oldstring, HUD_MAX_SIZE))
+	if (memcmp(hudstr, client->hud_oldstring, HUD_MAX_SIZE) || ((level.framenum - client->hud_lastsync) > (game.framediv * 40)))
 	{
-		client->hud_updateframe = level.framenum + (game.framediv * 2);
+		// determine how long we should wait before updating again
+		int cost = 1;
+		cost += (int)((client->ping / (game.frametime * 1000)) * 0.6667);
+
+		// biiiig boys
+		if (hudsz > 1200)
+			cost = game.framediv * 3;
+		else if (hudsz > 800)
+			cost = game.framediv * 2;
+		else if (hudsz > 400)
+			cost = game.framediv;
+		//
+
+		client->hud_updateframe = level.framenum + cost;
 		memcpy(client->hud_oldstring, hudstr, HUD_MAX_SIZE);
 
-		Com_Printf("%s\n", hudstr);
+		//Com_Printf("%s\n", hudstr);
 
 		// pack the message and...
 		gi.WriteByte(svc_configstring);

@@ -1,6 +1,10 @@
 
 #include "g_local.h"
 
+//
+#include <time.h>
+//
+
 detail_edict_t detail_ents[MAX_DETAILS];
 edict_t *detail_reserved[RESERVED_DETAILEDICTS];
 detail_edict_t *detail_map[MAX_CLIENTS][RESERVED_DETAILEDICTS];
@@ -193,7 +197,7 @@ void D_GenerateQueue(edict_t *ent)
 		if (detail->detailflags & DETAIL_NEARLIMIT)
 			scorelimit *= 0.25;
 
-		if (score > DETAIL_MAXRANGE && !(detail->detailflags & DETAIL_NOLIMIT))
+		if (score > scorelimit && !(detail->detailflags & DETAIL_NOLIMIT))
 			continue;
 
 		if ((detail->detailflags & DETAIL_PRIORITY_MAX) == DETAIL_PRIORITY_MAX)
@@ -306,5 +310,272 @@ detail_edict_t* D_Spawn(void)
 void D_Free(detail_edict_t *detail)
 {
 	detail->isused = false;
+}
+
+// Reki (February 8 2024): Start of actor stuff...
+// basic idea is to use 'chunks' to group up actors, as kind of a shitty PVS
+actor_t actor_list[MAX_ACTORS];
+edict_t *viewer_edict;
+vec3_t viewer_origin;
+int viewer_clientnum;
+
+typedef struct actortree_s {
+	int score;
+	actor_t *actor;
+	struct actortree_s *above;
+	struct actortree_s *higher;
+	struct actortree_s *lower;
+} actortree_t;
+
+actortree_t tree_data[MAX_ACTORS];
+actortree_t *tree_head;
+int tree_seek;
+
+detailusagefield_t scene_detailused;
+detailedictfield_t scene_redictused;
+int scene_detailcount;
+
+int Actor_AddDetail(actor_t *actor, detail_edict_t *detail)
+{
+	int index = detail - detail_ents;
+	int index_board = (int)(index / BITS_PER_NUM);
+	int index_bit = (index % BITS_PER_NUM);
+	scene_detailused[index_board] |= 1ULL << index_bit;
+	scene_detailcount++;
+	if (scene_detailcount >= RESERVED_DETAILEDICTS)	
+		return true; // abort! we've capped out
+	return false;
+}
+
+int Actor_AddToScene(actor_t *actor, int score)
+{
+	if (actor->addtoscene)
+	{
+		if (actor->addtoscene(actor, score))
+			return false;
+	}
+
+	for(int i = 0; i < ACTOR_MAX_DETAILS; i++)
+	{
+		if (actor->details[i] == NULL)
+			break;
+
+		// really hope this detail ent is in the master list...
+		if (Actor_AddDetail(actor, actor->details[i]))
+			return true;
+	}
+
+	return false;
+}
+
+// returns a score, used to assemble the binary tree, <0 for do not add
+int Actor_Evaluate(actor_t *actor)
+{
+	if ((viewer_edict->client->chunks_visible & actor->chunks_visible) == 0) // no overlap in our chunks...
+		return ACTOR_DO_NOT_ADD;
+
+	vec3_t diff;
+	VectorSubtract(viewer_origin, actor->origin, diff);
+	int score = (int)(VectorLength(diff)) + 1;
+
+	if (actor->evaluate)
+		actor->evaluate(actor, &score);
+
+	return score;
+}
+
+// inserts into the binary tree
+void Actor_AddToTree(actor_t *actor, int score)
+{
+	actortree_t *tree = &tree_data[tree_seek];
+	tree_seek++;
+
+	tree->score = score;
+	tree->actor = actor;
+	tree->higher = NULL;
+	tree->lower = NULL;
+
+	if (!tree_head)
+	{
+		tree_head = tree;
+	}
+	else
+	{
+		actortree_t *lst = tree_head;
+		while(1)
+		{
+			if (score > lst->score)
+			{
+				if (lst->higher)
+					goto tree_higher;
+				tree->above = lst;
+				lst->higher = tree;
+				break;
+			}
+			else
+			{
+				if (lst->lower)
+					goto tree_lower;
+				tree->above = lst;
+				lst->lower = tree;
+				break;
+			}
+
+			tree_higher:
+			lst = lst->higher;
+			continue;
+			tree_lower:
+			lst = lst->lower;
+			continue;
+		}
+	}
+}
+
+void Actor_GenerateTree(void)
+{
+	tree_head = NULL;
+	tree_seek = 0;
+
+	for(int i = 0; i < MAX_ACTORS; i++)
+	{
+		actor_t *actor = &actor_list[i];
+		if (!actor->inuse)
+			continue;
+
+		int score = Actor_Evaluate(actor);
+		if (score == ACTOR_DO_NOT_ADD)
+			continue;
+
+		Actor_AddToTree(actor, score);
+	}
+}
+
+// returns true if we should abort the search
+int Actor_TraverseTree(actortree_t *node)
+{
+	if (node == NULL)
+		return false;
+	
+	if (Actor_TraverseTree(node->lower))
+		return true;
+
+	if (Actor_AddToScene(node->actor, node->score))
+		return true;
+
+	if (Actor_TraverseTree(node->higher))
+		return true;
+	
+	return false;
+}
+
+actor_t *Actor_Spawn(void)
+{
+	actor_t *actor = &actor_list[0];
+	for(int i = 0; i < MAX_ACTORS; i++)
+	{
+		if (actor_list[i].inuse)
+			continue;
+		actor = &actor_list[i];
+		break;
+	}
+
+	memset(actor, 0, sizeof(actor_t));
+	actor->inuse = true;
+	return actor;
+}
+
+void Actor_Free(actor_t *actor)
+{
+	actor->inuse = false;
+}
+
+void Scene_Generate(edict_t *viewer)
+{
+	if (viewer->client == NULL)
+		return;
+
+	struct timespec tstart={0,0}, tend={0,0};
+    clock_gettime(CLOCK_MONOTONIC, &tstart);
+
+	viewer_clientnum = viewer - globals.edicts;
+	viewer_edict = viewer; // set the global for other funcs to use
+	VectorAdd(viewer->s.origin, viewer->client->ps.viewoffset, viewer_origin);
+	memset(scene_detailused, 0, sizeof(scene_detailused)); // clear out our scratch detail bitboard
+	memcpy(scene_redictused, viewer_edict->client->detail_edict_in_use, sizeof(scene_redictused));
+	scene_detailcount = 0;
+
+	// use binary tree to get our data
+	Actor_GenerateTree();
+	Actor_TraverseTree(tree_head);
+
+	// figure out which details are going to remain the same, and which will be changing
+	for(int i = 0; i < DETAIL_USAGE_BOARDS; i++)
+	{
+		bitfield_t newf = scene_detailused[i];
+		bitfield_t oldf = viewer_edict->client->detail_sent_to_client[i];
+
+		size_t delta = newf ^ oldf;
+		if (delta)
+		{
+			size_t delta_add = delta & newf;
+			size_t delta_remove = delta & ~newf;
+			if (delta_remove)
+			{
+				do {
+					int index = __builtin_ctzl(delta_remove);
+					detail_edict_t *detail = &detail_ents[index + (BITS_PER_NUM * i)];
+					int redict_to_free = detail->mapped_to[viewer_clientnum];
+					int free_board = (int)(redict_to_free / BITS_PER_NUM);
+					int free_bit = (redict_to_free % BITS_PER_NUM);
+					scene_redictused[free_board] &= ~(1ULL << free_bit);
+
+					detail_map[viewer_clientnum][redict_to_free] = NULL;
+					detail->mapped_to[viewer_clientnum] = 0;
+					delta_remove &= ~(1ULL << index);
+				} while(delta_remove);
+				
+			}
+
+			if (delta_add)
+			{
+				#if 1
+				do {
+					int index = __builtin_ctzl(delta_add);
+					detail_edict_t *detail = &detail_ents[index + (BITS_PER_NUM * i)];
+					int redict_index = 0;
+					for(int j = 0; j < DETAIL_EDICT_BOARDS; j++)
+					{
+						if (~scene_redictused[j] == 0) // all are used here...
+							continue;
+						
+						size_t inverted = ~scene_redictused[j];
+						int free_bit = __builtin_ctzl(inverted);
+						redict_index = free_bit + (BITS_PER_NUM * j);
+						scene_redictused[j] |= (1ULL << free_bit);
+						break;
+					}
+
+					VectorCopy(detail->s.origin, detail->s.old_origin);
+					detail_map[viewer_clientnum][redict_index] = detail;
+					detail->mapped_to[viewer_clientnum] = redict_index;
+					detail->s.event |= EV_OTHER_TELEPORT;
+
+					//Com_Printf("%.64llb\n", delta_add);
+					//Com_Printf("%.64llb\n\n", ~(1ULL << (size_t)index));
+					delta_add = (delta_add & ~(1ULL << (size_t)index));
+				} while (delta_add);
+				#endif
+			}
+		}
+	}
+
+	memcpy(viewer_edict->client->detail_edict_in_use, scene_redictused, sizeof(scene_redictused));
+	memcpy(viewer_edict->client->detail_sent_to_client, scene_detailused, sizeof(scene_detailused));
+
+
+    clock_gettime(CLOCK_MONOTONIC, &tend);
+    printf("frame took about %.5f ms\n",
+           (((double)tend.tv_sec + 1.0e-9*tend.tv_nsec) - 
+           ((double)tstart.tv_sec + 1.0e-9*tstart.tv_nsec)) * 1000);
 }
 

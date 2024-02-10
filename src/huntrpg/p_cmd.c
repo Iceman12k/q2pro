@@ -73,6 +73,39 @@ void Cmd_InvToggle_f(edict_t *ent)
 	ent->client->inv_angle = ent->client->ps.viewangles[1];
 }
 
+void Cmd_HotbarToggle_f(edict_t *ent)
+{
+	ent->client->hotbar_open = !ent->client->hotbar_open;
+
+	if (ent->client->hotbar_open)
+	{
+		ent->client->hotbar_animtime = level.time + HOTBAR_RAISETIME;
+	}
+}
+
+void Cmd_HotbarSequential_f(edict_t *ent, int dir)
+{
+	if (!ent->client->hotbar_open)
+		return;
+
+	ent->client->hotbar_selected += dir;
+	if (ent->client->hotbar_selected >= INVEN_TOTALSLOTS)
+		ent->client->hotbar_selected = INVEN_HOTBAR_START;
+	else if (ent->client->hotbar_selected < INVEN_HOTBAR_START)
+		ent->client->hotbar_selected = INVEN_TOTALSLOTS - 1;
+}
+
+void Cmd_HotbarSwap_f(edict_t *ent, int slot)
+{
+	if (!ent->client->hotbar_open)
+		return;
+
+	if (slot < 1 || slot > INVEN_HOTBAR)
+		return;
+	
+	ent->client->hotbar_selected = INVEN_HOTBAR_START + (slot - 1);
+}
+
 /*
 =================
 ClientCommand
@@ -108,23 +141,35 @@ void ClientCommand(edict_t *ent)
 		Cmd_Noclip_f(ent);
 	*/
 
-	if (Q_stricmp(cmd, "help") == 0 || Q_stricmp(cmd, "inventory") == 0)
+	if (Q_stricmp(cmd, "inv_open") == 0)
+	{
+		Cmd_HotbarToggle_f(ent);
+		return;
+	}
+	else if (Q_stricmp(cmd, "help") == 0 || Q_stricmp(cmd, "inventory") == 0)
 	{
 		Cmd_InvToggle_f(ent);
 		return;
 	}
-
-	if (Q_stricmp(cmd, "use") == 0)
+	else if (Q_stricmp(cmd, "invnext") == 0)
+	{
+		Cmd_HotbarSequential_f(ent, 1);
+	}
+	else if (Q_stricmp(cmd, "invprev") == 0)
+	{
+		Cmd_HotbarSequential_f(ent, -1);
+	}
+	else if (Q_stricmp(cmd, "invuse") == 0)
+	{
+		Cmd_HotbarSwap_f(ent, atoi(gi.argv(1)));
+	}
+	else if (Q_stricmp(cmd, "use") == 0)
 		return;
 	else if (Q_stricmp(cmd, "drop") == 0)
 		return;
 	else if (Q_stricmp(cmd, "give") == 0)
 		return;
 	else if (Q_stricmp(cmd, "inven") == 0)
-		return;
-	else if (Q_stricmp(cmd, "invnext") == 0)
-		return;
-	else if (Q_stricmp(cmd, "invprev") == 0)
 		return;
 	else if (Q_stricmp(cmd, "invnextw") == 0)
 		return;
