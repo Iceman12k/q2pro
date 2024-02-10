@@ -21,7 +21,7 @@ static float D_Predraw(edict_t *v, edict_t *ref, entity_state_t *s)
 	// increment seek in the queue
 	//client->detail_current = entry->next;
 	//
-	
+
 	// find the proper origin
 	int hold_num = s->number;
 	*s = entry->s;
@@ -31,6 +31,12 @@ static float D_Predraw(edict_t *v, edict_t *ref, entity_state_t *s)
 	if (entry->predraw)
 		successful = entry->predraw(v, entry, s);
 	//
+
+	if (entry->is_new[clientnum])
+	{
+		s->event = EV_OTHER_TELEPORT;
+		entry->is_new[clientnum] = false;
+	}
 
 	// save our current origin out for next time
 	//VectorCopy(s->origin, entry->old_origin[clientnum]);
@@ -335,12 +341,37 @@ detailusagefield_t scene_detailused;
 detailedictfield_t scene_redictused;
 int scene_detailcount;
 
+void Actor_Link(actor_t *actor, int size)
+{
+	actor->chunks_visible = 1ULL << ORG_TO_CHUNK(actor->origin);
+
+	if (size <= 1)
+	{
+		for(int ang = 0; ang < 360; ang += 22.5)
+		{
+			vec3_t vorg;
+			vec3_t uvector;
+
+			uvector[0] = cos(DEG2RAD(ang));
+			uvector[1] = sin(DEG2RAD(ang));
+			uvector[2] = 0;
+
+			VectorMA(actor->origin, CHUNK_SIZE * 0.6, uvector, vorg);
+			actor->chunks_visible |= 1ULL << ORG_TO_CHUNK(vorg);
+			VectorMA(actor->origin, CHUNK_SIZE * 1, uvector, vorg);
+			actor->chunks_visible |= 1ULL << ORG_TO_CHUNK(vorg);
+			VectorMA(actor->origin, CHUNK_SIZE * 1.4, uvector, vorg);
+			actor->chunks_visible |= 1ULL << ORG_TO_CHUNK(vorg);
+		}
+	}
+}
+
 int Actor_AddDetail(actor_t *actor, detail_edict_t *detail)
 {
 	int index = detail - detail_ents;
 	int index_board = (int)(index / BITS_PER_NUM);
 	int index_bit = (index % BITS_PER_NUM);
-	scene_detailused[index_board] |= 1ULL << index_bit;
+	scene_detailused[index_board] |= (size_t)1 << index_bit;
 	scene_detailcount++;
 	if (scene_detailcount >= RESERVED_DETAILEDICTS)	
 		return true; // abort! we've capped out
@@ -497,7 +528,7 @@ void Scene_Generate(edict_t *viewer)
 	struct timespec tstart={0,0}, tend={0,0};
     clock_gettime(CLOCK_MONOTONIC, &tstart);
 
-	viewer_clientnum = viewer - globals.edicts;
+	viewer_clientnum = viewer - g_edicts;
 	viewer_edict = viewer; // set the global for other funcs to use
 	VectorAdd(viewer->s.origin, viewer->client->ps.viewoffset, viewer_origin);
 	memset(scene_detailused, 0, sizeof(scene_detailused)); // clear out our scratch detail bitboard
@@ -509,7 +540,7 @@ void Scene_Generate(edict_t *viewer)
 	Actor_TraverseTree(tree_head);
 
 	// figure out which details are going to remain the same, and which will be changing
-	for(int i = 0; i < DETAIL_USAGE_BOARDS; i++)
+	for(int i = 0; i < DETAIL_USAGE_BOARDS; i++) // loop to remove old ents, and free their redicts
 	{
 		bitfield_t newf = scene_detailused[i];
 		bitfield_t oldf = viewer_edict->client->detail_sent_to_client[i];
@@ -517,7 +548,6 @@ void Scene_Generate(edict_t *viewer)
 		size_t delta = newf ^ oldf;
 		if (delta)
 		{
-			size_t delta_add = delta & newf;
 			size_t delta_remove = delta & ~newf;
 			if (delta_remove)
 			{
@@ -527,18 +557,26 @@ void Scene_Generate(edict_t *viewer)
 					int redict_to_free = detail->mapped_to[viewer_clientnum];
 					int free_board = (int)(redict_to_free / BITS_PER_NUM);
 					int free_bit = (redict_to_free % BITS_PER_NUM);
-					scene_redictused[free_board] &= ~(1ULL << free_bit);
+					scene_redictused[free_board] &= ~((size_t)1 << free_bit);
 
 					detail_map[viewer_clientnum][redict_to_free] = NULL;
 					detail->mapped_to[viewer_clientnum] = 0;
-					delta_remove &= ~(1ULL << index);
+					delta_remove &= ~((size_t)1 << index);
 				} while(delta_remove);
-				
 			}
+		}
+	}
+	for(int i = 0; i < DETAIL_USAGE_BOARDS; i++) // loop to add new ents, using the freed redicts
+	{
+		bitfield_t newf = scene_detailused[i];
+		bitfield_t oldf = viewer_edict->client->detail_sent_to_client[i];
 
+		size_t delta = newf ^ oldf;
+		if (delta)
+		{
+			size_t delta_add = delta & newf;
 			if (delta_add)
 			{
-				#if 1
 				do {
 					int index = __builtin_ctzl(delta_add);
 					detail_edict_t *detail = &detail_ents[index + (BITS_PER_NUM * i)];
@@ -551,20 +589,21 @@ void Scene_Generate(edict_t *viewer)
 						size_t inverted = ~scene_redictused[j];
 						int free_bit = __builtin_ctzl(inverted);
 						redict_index = free_bit + (BITS_PER_NUM * j);
-						scene_redictused[j] |= (1ULL << free_bit);
+						scene_redictused[j] |= ((size_t)1 << free_bit);
 						break;
 					}
 
 					VectorCopy(detail->s.origin, detail->s.old_origin);
 					detail_map[viewer_clientnum][redict_index] = detail;
 					detail->mapped_to[viewer_clientnum] = redict_index;
-					detail->s.event |= EV_OTHER_TELEPORT;
+					detail->is_new[viewer_clientnum] = true;
+
+					//Com_Printf("Adding detail %i\n", index + (BITS_PER_NUM * i));
 
 					//Com_Printf("%.64llb\n", delta_add);
 					//Com_Printf("%.64llb\n\n", ~(1ULL << (size_t)index));
-					delta_add = (delta_add & ~(1ULL << (size_t)index));
+					delta_add = (delta_add & ~((size_t)1 << (size_t)index));
 				} while (delta_add);
-				#endif
 			}
 		}
 	}

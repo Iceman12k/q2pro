@@ -104,6 +104,7 @@ struct detail_edict_s {
 	float(*physics)(detail_edict_t *e);
 
 	// used for mapping to a real edict
+	qboolean is_new[MAX_CLIENTS];
 	uint8_t mapped_to[MAX_CLIENTS];
 	int	valid;
 	int	mapped;
@@ -519,6 +520,7 @@ detail_edict_t* D_Spawn(void);
 void D_Free(detail_edict_t *detail);
 void Scene_Generate(edict_t *viewer);
 actor_t *Actor_Spawn(void);
+void Actor_Link(actor_t *actor, int size);
 
 //
 // g_environment

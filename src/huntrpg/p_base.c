@@ -2,7 +2,6 @@
 #include "g_local.h"
 
 
-
 /*
 ===========
 ClientUserInfoChanged
@@ -294,29 +293,6 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 	}
 	//
 
-	// debug
-	// debug chunks
-	#if 0
-	Com_Printf("\n\nDetail bitboards: %i\n", __builtin_ctz(0b000010));
-	for(int i = 0; i < CHUNK_HEIGHT; i++)
-	{
-		for(int j = 0; j < CHUNK_WIDTH; j++)
-		{
-			uint64_t bit = 1ULL << (j + (i << 3ULL));// + (i << 3));
-			if (client->chunks_visible & bit)
-			{
-				Com_Printf("X");
-			}
-			else
-			{
-				Com_Printf("O");
-			}
-		}
-		Com_Printf("\n");
-	}
-	#endif
-	//
-
 	gi.linkentity(ent);
 }
 
@@ -497,7 +473,64 @@ void ClientEndServerFrame(edict_t *ent)
 	}
 	//
 
-	client->chunks_visible = ~0ULL;
+	//client->chunks_visible = ~0ULL;
+	// figure out visible chunks
+	{
+		int current_chunk = ORG_TO_CHUNK(ent->s.origin);
+		client->chunks_visible = 0ULL;
+		client->chunks_visible |= 1ULL << current_chunk;
+		client->chunks_visible |= (1ULL << current_chunk) << 1ULL;
+		client->chunks_visible |= (1ULL << current_chunk) >> 1ULL;
+		client->chunks_visible |= (1ULL << current_chunk) << 8ULL;
+		client->chunks_visible |= (1ULL << current_chunk) >> 8ULL;
+
+		// FIXME: Reki (February 10 2024): this is probably a really shit way to do this...
+		// brain is too fried to figure out a proper way tho
+		float ang = round(client->ps.viewangles[YAW] / 25) * 25;
+		float angs[] = {ang - 50, ang - 37.5, 
+					ang - 25, ang - 12.5,
+					ang, ang + 12.5, ang + 25,
+					ang + 37.5, ang + 50};
+		for(int i = 0; i < (sizeof(angs) / sizeof(angs[0])); i++)
+		{
+			vec3_t vorg;
+			vec3_t uvector;
+
+			uvector[0] = cos(DEG2RAD(angs[i]));
+			uvector[1] = sin(DEG2RAD(angs[i]));
+			uvector[2] = 0;
+
+			VectorMA(ent->s.origin, CHUNK_SIZE * 0.6, uvector, vorg);
+			client->chunks_visible |= 1ULL << ORG_TO_CHUNK(vorg);
+			VectorMA(ent->s.origin, CHUNK_SIZE * 0.9, uvector, vorg);
+			client->chunks_visible |= 1ULL << ORG_TO_CHUNK(vorg);
+			VectorMA(ent->s.origin, CHUNK_SIZE * 1.2, uvector, vorg);
+			client->chunks_visible |= 1ULL << ORG_TO_CHUNK(vorg);
+		}
+
+		// debug
+		// debug chunks
+		#if 0
+		Com_Printf("\n\nDetail bitboards: %i\n", __builtin_ctz(0b000010));
+		for(int i = 0; i < CHUNK_HEIGHT; i++)
+		{
+			for(int j = 0; j < CHUNK_WIDTH; j++)
+			{
+				uint64_t bit = 1ULL << (j + (i << 3ULL));// + (i << 3));
+				if (client->chunks_visible & bit)
+				{
+					Com_Printf("X");
+				}
+				else
+				{
+					Com_Printf("O");
+				}
+			}
+			Com_Printf("\n");
+		}
+		#endif
+		//
+	}
 
 	// generate detail queue
 	if (KEYFRAME(level.framenum))

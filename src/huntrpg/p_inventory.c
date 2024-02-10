@@ -193,14 +193,14 @@ void I_Initialize(void)
 	{
 		for(int y = 0; y < 32; y++)
 		{
-			for(int z = 0; z < 7; z++)
+			for(int z = 0; z < 4; z++)
 			{
 				actor_t *actor = Actor_Spawn();
 				actor->details[0] = D_Spawn();
 				actor->details[0]->s.modelindex = gi.modelindex("models/objects/gibs/head2/tris.md2");
-				actor->chunks_visible = ~0ULL;
 				VectorSet(actor->details[0]->s.origin, (x) * 16, (y) * 16, (z) * 16);
 				VectorCopy(actor->details[0]->s.origin, actor->origin);
+				Actor_Link(actor, 16);
 			}
 		}
 	}
