@@ -173,6 +173,8 @@ game_src = [
   'src/huntrpg/p_hud.c',
   'src/huntrpg/p_detail.c',
   'src/huntrpg/e_detail.c',
+  'src/huntrpg/e_props.c',
+  'src/huntrpg/e_pooltable.c',
   'src/shared/shared.c',
 ]
 endif

@@ -27,6 +27,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "shared/game.h"
 #include "inventory.h"
 
+#define EDICT_NUM(n) ((edict_t *)((byte *)g_edicts + sizeof(g_edicts[0])*(n)))
+#define NUM_FOR_EDICT(e) ((int)(((byte *)(e) - (byte *)g_edicts) / sizeof(g_edicts[0])))
+
 // features this game supports
 #define G_FEATURES  (GMF_PROPERINUSE|GMF_WANT_ALL_DISCONNECTS|GMF_ENHANCED_SAVEGAMES|GMF_VARIABLE_FPS)
 
@@ -269,6 +272,8 @@ struct gclient_s {
 	int			inv_highlighted;
 	int			inv_selected;
 
+	int			using_vehicle;
+
 	detail_list_t *detail_bucket[DETAIL_BUCKETS];
 	
 	int			passive_flags;
@@ -382,6 +387,7 @@ struct edict_s {
 	// rpg stuff
 	float		(*predraw)(edict_t *v, edict_t *e, entity_state_t *s);
 	float		(*physics)(edict_t *e);
+	void		*data;
 };
 
 
@@ -521,6 +527,11 @@ void D_Free(detail_edict_t *detail);
 void Scene_Generate(edict_t *viewer);
 actor_t *Actor_Spawn(void);
 void Actor_Link(actor_t *actor, int size);
+
+//
+// e_props.c
+//
+void Props_CreateDetails(void);
 
 //
 // g_environment

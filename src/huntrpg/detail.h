@@ -32,6 +32,8 @@ typedef bitfield_t detailedictfield_t[DETAIL_EDICT_BOARDS];
 //extern detailedictfield_t reserved_edicts_available[MAX_CLIENTS];
 
 extern edict_t *viewer_edict;
+extern vec3_t viewer_origin;
+extern int viewer_clientnum;
 
 // actors
 #define ACTOR_DO_NOT_ADD 0
@@ -41,6 +43,9 @@ typedef struct actor_s {
 	uint64_t chunks_visible;
 	
 	vec3_t origin;
+	vec3_t mins;
+	vec3_t maxs;
+
 	detail_edict_t *details[ACTOR_MAX_DETAILS];
 	void(*evaluate)(struct actor_s *actor, int *score);
 	int(*addtoscene)(struct actor_s *actor, int score);

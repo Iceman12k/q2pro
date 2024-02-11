@@ -14,10 +14,20 @@ typedef struct {
 
 void SP_worldspawn(edict_t *ent);
 void SP_func_illusionary(edict_t *ent);
+void SP_actor_bbox(edict_t *ent);
+void SP_info_detail(edict_t *ent);
+void SP_actor_pooltable(edict_t *ent);
 
 static const spawn_func_t spawn_funcs[] = {
 	{"worldspawn", SP_worldspawn},
 	{"func_illusionary", SP_func_illusionary},
+
+	// details
+	{"actor_bbox", SP_actor_bbox},
+	{"info_detail", SP_info_detail},
+
+	// gimmicks
+	{"actor_pooltable", SP_actor_pooltable},
 
 	{NULL, NULL}
 };
@@ -45,6 +55,9 @@ static const spawn_field_t spawn_fields[] = {
 	{"origin", FOFS(s.origin), F_VECTOR},
 	{"angles", FOFS(s.angles), F_VECTOR},
 	{"angle", FOFS(s.angles), F_ANGLEHACK},
+
+	{"frame", FOFS(s.frame), F_INT},
+	{"skinnum", FOFS(s.skinnum), F_INT},
 
 	{NULL}
 };
@@ -182,6 +195,8 @@ void SpawnEntities(const char *mapname, const char *entities, const char *spawnp
 
 		ED_CallSpawn(ent);
 	}
+
+	Props_CreateDetails();
 }
 
 /*

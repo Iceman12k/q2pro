@@ -82,7 +82,6 @@ qboolean ClientConnect(edict_t *ent, char *userinfo)
 		return false;
 	}
 
-
 	// they can connect
 	ent->client = game.clients + (ent - g_edicts - 1);
 	ClientUserinfoChanged(ent, userinfo);
@@ -92,6 +91,7 @@ qboolean ClientConnect(edict_t *ent, char *userinfo)
 
 	ent->svflags = 0; // make sure we start with known default
 	ent->client->pers.connected = true;
+	
 	return true;
 }
 
