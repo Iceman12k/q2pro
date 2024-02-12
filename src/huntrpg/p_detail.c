@@ -2,6 +2,64 @@
 #include "g_local.h"
 #include "md3.h"
 
+#define CD_MODEL	0
+
+void CL_DetailCleanup(edict_t *ent)
+{
+	gclient_t *client = ent->client;
+	actor_t *actor = client->actor;
+
+	Actor_Cleanup(actor);
+}
+
+void CL_ActorEvaluate(actor_t *actor, int *score)
+{
+	if (viewer_edict == actor->owner)
+		*score = ACTOR_DO_NOT_ADD;
+}
+
+int CL_ActorFrame(actor_t *actor)
+{
+	edict_t *ent = actor->owner;
+	gclient_t *client = ent->client;
+	detail_edict_t *model = actor->details[CD_MODEL];
+	VectorCopy(actor->owner->s.origin, model->s.origin);
+	model->s.angles[YAW] = actor->owner->client->ps.viewangles[YAW];\
+
+	int chunk_num = ORG_TO_CHUNK(actor->origin);
+	actor->chunks_visible = 1ULL << chunk_num |
+							(1ULL << chunk_num) << 1ULL |
+							(1ULL << chunk_num) >> 1ULL |
+							(1ULL << chunk_num) << 8ULL |
+							(1ULL << chunk_num) >> 8ULL |
+							(1ULL << chunk_num) << 9ULL |
+							(1ULL << chunk_num) << 7ULL |
+							(1ULL << chunk_num) >> 9ULL |
+							(1ULL << chunk_num) >> 7ULL;
+	
+	if (client->ps.pmove.pm_flags & PMF_DUCKED)
+		model->s.frame = 144;
+	else
+		model->s.frame = 0;
+
+}
+
+void CL_DetailCreate(edict_t *ent)
+{
+	detail_edict_t *detail;
+	gclient_t *client = ent->client;
+	actor_t *actor = Actor_Spawn();
+	client->actor = actor;
+	actor->owner = ent;
+	actor->physics = CL_ActorFrame;
+	actor->evaluate = CL_ActorEvaluate;
+
+	detail = D_Spawn();
+	actor->details[CD_MODEL] = detail;
+	detail->s.modelindex = gi.modelindex("players/female/tris.md2");
+}
+
+/*
 static float PL_DetailFrame(detail_edict_t *e)
 {
 	edict_t *ent = e->owner;
@@ -193,5 +251,6 @@ void CL_DetailCleanup(edict_t *ent)
 		D_Free(ed);
 	}
 }
+*/
 
 

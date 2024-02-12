@@ -55,13 +55,13 @@ void SP_worldspawn(edict_t *ent)
 	gi.imageindex("hotbars");
 	gi.imageindex("hotbarc");
 
-	LOAD_MD3("models/players/f1/head");
-	LOAD_MD3("models/players/f1/upper");
-	LOAD_MD3("models/players/f1/lower");
+	//LOAD_MD3("models/players/f1/head");
+	//LOAD_MD3("models/players/f1/upper");
+	//LOAD_MD3("models/players/f1/lower");
 
-	LOAD_MD3("models/players/m1/head");
-	LOAD_MD3("models/players/m1/upper");
-	LOAD_MD3("models/players/m1/lower");
+	//LOAD_MD3("models/players/m1/head");
+	//LOAD_MD3("models/players/m1/upper");
+	//LOAD_MD3("models/players/m1/lower");
 
 
 	//

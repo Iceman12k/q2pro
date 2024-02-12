@@ -37,9 +37,19 @@ void G_RunEntity(edict_t *ent)
 
 void G_RunDetail(detail_edict_t *ent)
 {
+	ent->s.event = 0;
 	if (ent->physics)
 	{
 		if (ent->physics(ent))
+			return;
+	}
+}
+
+void G_RunActor(actor_t *actor)
+{
+	if (actor->physics)
+	{
+		if (actor->physics(actor))
 			return;
 	}
 }
@@ -49,6 +59,7 @@ void G_RunFrame(void)
 	int     i;
 	edict_t *ent;
 	detail_edict_t *det;
+	actor_t *actor;
 
 	level.framenum++;
 	level.time = level.framenum * FRAMETIME;
@@ -92,6 +103,14 @@ void G_RunFrame(void)
 			continue;
 
 		G_RunDetail(det);
+	}
+
+	actor = &actor_list[0];
+	for (i = 0; i < MAX_DETAILS; i++, actor++) {
+		if (!actor->inuse)
+			continue;
+
+		G_RunActor(actor);
 	}
 
 	// see if needpass needs updated

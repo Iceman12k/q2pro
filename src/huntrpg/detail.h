@@ -35,6 +35,9 @@ extern edict_t *viewer_edict;
 extern vec3_t viewer_origin;
 extern int viewer_clientnum;
 
+typedef struct actor_s actor_t;
+typedef actor_t actor_s;
+
 // actors
 #define ACTOR_DO_NOT_ADD 0
 #define ACTOR_MAX_DETAILS 64
@@ -46,11 +49,14 @@ typedef struct actor_s {
 	vec3_t mins;
 	vec3_t maxs;
 
+	edict_t *owner;
 	detail_edict_t *details[ACTOR_MAX_DETAILS];
-	void(*evaluate)(struct actor_s *actor, int *score);
-	int(*addtoscene)(struct actor_s *actor, int score);
+	void(*evaluate)(actor_t *actor, int *score);
+	int(*addtoscene)(actor_t *actor, int score);
+
+	int(*physics)(actor_t *actor);
 } actor_t;
 
-
+extern actor_t actor_list[MAX_ACTORS];
 
 

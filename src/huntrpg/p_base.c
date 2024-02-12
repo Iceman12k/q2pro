@@ -91,7 +91,7 @@ qboolean ClientConnect(edict_t *ent, char *userinfo)
 
 	ent->svflags = 0; // make sure we start with known default
 	ent->client->pers.connected = true;
-	
+
 	return true;
 }
 
@@ -177,6 +177,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 		I_Input(ent, ucmd);
 	}
 
+	client->cmd_lastbuttons = client->cmd_buttons;
 	client->cmd_buttons = ucmd->buttons;
 
 	for (i = 0; i < 3; i++) {

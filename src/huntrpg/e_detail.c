@@ -47,9 +47,10 @@ static float D_Predraw(edict_t *v, edict_t *ref, entity_state_t *s)
 	return successful;
 }
 
+int null_model;
 void D_Initialize(void)
 {
-	int null_model = gi.modelindex("models/null.md2");
+	null_model = gi.modelindex("models/null.md2");
 
 	for (int i = 0; i < RESERVED_DETAILEDICTS; i++)
 	{
@@ -518,6 +519,16 @@ actor_t *Actor_Spawn(void)
 void Actor_Free(actor_t *actor)
 {
 	actor->inuse = false;
+}
+
+void Actor_Cleanup(actor_t *actor) // like free, but also removes the details
+{
+	for(int i = 0; i < ACTOR_MAX_DETAILS; i++)
+	{
+		D_Free(&actor->details[i]);
+	}
+
+	Actor_Free(actor);
 }
 
 void Scene_Generate(edict_t *viewer)

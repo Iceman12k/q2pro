@@ -232,10 +232,7 @@ typedef struct {
 // this structure is cleared on each PutClientInServer(),
 // except for 'client->pers'
 enum clientdetail_e {
-	CD_HEAD,
-	CD_TORSO,
-	CD_LEGS,
-	CD_WEAPON,
+	CD_MODEL,
 	CD_MAX
 };
 
@@ -250,6 +247,7 @@ struct gclient_s {
 	vec3_t				v_angle;    // aiming direction
 	vec3_t				cmd_angles;
 	int					cmd_buttons;
+	int					cmd_lastbuttons;
 
 	float				time; // the "time" of the client, incremented by ucmd->msec
 	int					download_cooldown; // when should we poke the client for the next asset download?
@@ -293,7 +291,8 @@ struct gclient_s {
 	uint64_t chunks_visible;
 	detailusagefield_t detail_sent_to_client;
 	detailedictfield_t detail_edict_in_use;
-	detail_edict_t *details[CD_MAX];
+	//detail_edict_t *details[CD_MAX];
+	actor_t *actor;
 };
 
 struct edict_s {
@@ -452,6 +451,7 @@ void ClientEndServerFrames(void);
 #define bound(a,b,c) ((a) >= (c) ? (a) : (b) < (a) ? (a) : (b) > (c) ? (c) : (b))
 float vectoyaw(vec3_t vec);
 void MatrixMultiply(float in1[3][3], float in2[3][3], float out[3][3]);
+void RotatePointAroundVector(vec3_t dst, const vec3_t dir, const vec3_t point, float degrees);
 void vectoangles2(vec3_t angles, const vec3_t forward, const vec3_t up, qboolean flippitch);
 void vectoangles(vec3_t value1, vec3_t angles);
 int anglediff(int x, int y);
@@ -520,12 +520,15 @@ void H_Update(edict_t *ent, gclient_t *client);
 //
 // e_detail.c
 //
+extern int null_model;
 void D_Initialize(void);
 void D_GenerateQueue(edict_t *ent);
 detail_edict_t* D_Spawn(void);
 void D_Free(detail_edict_t *detail);
 void Scene_Generate(edict_t *viewer);
 actor_t *Actor_Spawn(void);
+void Actor_Free(actor_t *actor);
+void Actor_Cleanup(actor_t *actor);
 void Actor_Link(actor_t *actor, int size);
 
 //
