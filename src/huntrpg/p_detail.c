@@ -3,19 +3,41 @@
 #include "md3.h"
 
 #define CD_MODEL	0
+#define CD_WEAPON	1
 
 void CL_DetailCleanup(edict_t *ent)
 {
 	gclient_t *client = ent->client;
-	actor_t *actor = client->actor;
+	actor_t *actor = ent->actor;
 
 	Actor_Cleanup(actor);
+}
+
+float CL_WeaponPredraw(edict_t *v, detail_edict_t *e, entity_state_t *s)
+{
+	if (v == e->owner)
+		s->modelindex = null_model;
+	return true;
+}
+
+int CL_ActorAddToScene(actor_t *actor, int score)
+{
+	if (viewer_edict != actor->owner)
+		return false;
+	
+	Actor_AddDetail(actor, actor->details[CD_WEAPON]);
+	return true;
 }
 
 void CL_ActorEvaluate(actor_t *actor, int *score)
 {
 	if (viewer_edict == actor->owner)
-		*score = ACTOR_DO_NOT_ADD;
+	{
+		if (viewer_edict->client->passive_flags & PASSIVE_LIGHT)
+			*score = 1;
+		else
+			*score = ACTOR_DO_NOT_ADD;
+	}
 }
 
 int CL_ActorFrame(actor_t *actor)
@@ -23,8 +45,19 @@ int CL_ActorFrame(actor_t *actor)
 	edict_t *ent = actor->owner;
 	gclient_t *client = ent->client;
 	detail_edict_t *model = actor->details[CD_MODEL];
+	detail_edict_t *weapon = actor->details[CD_WEAPON];
 	VectorCopy(actor->owner->s.origin, model->s.origin);
-	model->s.angles[YAW] = actor->owner->client->ps.viewangles[YAW];\
+	model->s.angles[YAW] = actor->owner->client->ps.viewangles[YAW];
+
+	VectorCopy(actor->owner->s.origin, weapon->s.origin);
+	weapon->s.modelindex = 0;
+	weapon->s.effects = 0;
+	if (client->passive_flags & PASSIVE_LIGHT)
+	{
+		weapon->s.effects |= EF_HYPERBLASTER;
+		weapon->s.modelindex = null_model;
+	}
+
 
 	int chunk_num = ORG_TO_CHUNK(actor->origin);
 	actor->chunks_visible = 1ULL << chunk_num |
@@ -42,21 +75,28 @@ int CL_ActorFrame(actor_t *actor)
 	else
 		model->s.frame = 0;
 
+	return false;
 }
 
 void CL_DetailCreate(edict_t *ent)
 {
-	detail_edict_t *detail;
+	detail_edict_t *detail, *weapon;
 	gclient_t *client = ent->client;
 	actor_t *actor = Actor_Spawn();
-	client->actor = actor;
+	ent->actor = actor;
 	actor->owner = ent;
 	actor->physics = CL_ActorFrame;
 	actor->evaluate = CL_ActorEvaluate;
+	actor->addtoscene = CL_ActorAddToScene;
 
 	detail = D_Spawn();
 	actor->details[CD_MODEL] = detail;
 	detail->s.modelindex = gi.modelindex("players/female/tris.md2");
+
+	weapon = D_Spawn();
+	actor->details[CD_WEAPON] = weapon;
+	weapon->predraw = CL_WeaponPredraw;
+	weapon->s.modelindex = null_model;
 }
 
 /*

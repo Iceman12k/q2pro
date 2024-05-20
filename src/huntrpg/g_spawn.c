@@ -17,6 +17,7 @@ void SP_func_illusionary(edict_t *ent);
 void SP_actor_bbox(edict_t *ent);
 void SP_info_detail(edict_t *ent);
 void SP_actor_pooltable(edict_t *ent);
+void SP_monster_skeleton(edict_t *ent);
 
 static const spawn_func_t spawn_funcs[] = {
 	{"worldspawn", SP_worldspawn},
@@ -28,6 +29,9 @@ static const spawn_func_t spawn_funcs[] = {
 
 	// gimmicks
 	{"actor_pooltable", SP_actor_pooltable},
+
+	// monsters
+	{"monster_skeleton", SP_monster_skeleton},
 
 	{NULL, NULL}
 };

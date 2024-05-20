@@ -37,7 +37,6 @@ void G_RunEntity(edict_t *ent)
 
 void G_RunDetail(detail_edict_t *ent)
 {
-	ent->s.event = 0;
 	if (ent->physics)
 	{
 		if (ent->physics(ent))
@@ -65,6 +64,14 @@ void G_RunFrame(void)
 	level.time = level.framenum * FRAMETIME;
 
 	Environment_Update();
+
+	det = &detail_ents[0];
+	for (i = 0; i < MAX_DETAILS; i++, det++) {
+		if (!det->isused)
+			continue;
+
+		det->s.event = 0; // zero out events
+	}
 
 	//
 	// treat each object in turn

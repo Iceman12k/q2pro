@@ -21,7 +21,11 @@ enum passiveflags_e
 
 };
 
-typedef struct {
+
+typedef struct item_s item_t;
+typedef item_t item_s;
+
+struct item_s {
 	char name[MAX_ITEMNAME];
 	char icon_model[MAX_QPATH];
 	char icon_image[MAX_QPATH];
@@ -33,7 +37,9 @@ typedef struct {
 	int passive_flags;
 
 	// actual attributes here
-} item_t;
+	void(*frame)(edict_t *ent, item_t *item, int *do_think);
+	void(*endframe)(edict_t *ent, item_t *item);
+};
 
 extern item_t pickaxe;
 extern item_t lantern;

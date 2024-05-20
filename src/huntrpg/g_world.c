@@ -2,15 +2,6 @@
 #include "g_local.h"
 #include "md3.h"
 
-const char *downloadlist[] = {
-	"pics/hotbar.pcx",
-	"pics/hotbars.pcx",
-	"pics/hotbarc.pcx",
-	"pics/infoblock.pcx",
-	"pics/i_pickaxe.pcx",
-};
-const int downloadlist_size = sizeof(downloadlist) / sizeof(downloadlist[0]);
-
 #define LOAD_MD3(x) MD3_LoadModel(x".md3"); gi.modelindex(x".md2")
 
 void SP_worldspawn(edict_t *ent)
@@ -50,10 +41,21 @@ void SP_worldspawn(edict_t *ent)
 	gi.modelindex("models/inven/square.md2");
 	gi.modelindex("models/inven/i_pickaxe.md2");
 
-	gi.imageindex("infoblock");
-	gi.imageindex("hotbar");
-	gi.imageindex("hotbars");
-	gi.imageindex("hotbarc");
+	gi.modelindex("models/monsters/necro.md2");
+	gi.modelindex("models/monsters/wraith.md2");
+	gi.modelindex("models/monsters/torment.md2");
+
+	//gi.imageindex("infoblock");
+	//gi.imageindex("hotbar");
+	//gi.imageindex("hotbars");
+	//gi.imageindex("hotbarc");
+
+	gi.soundindex("western/hammer_hit.wav");
+	gi.soundindex("western/pick_hit.wav");
+	gi.soundindex("western/swing_small.wav");
+	gi.soundindex("western/swing_big.wav");
+	gi.soundindex("western/switch_weapon.wav");
+	gi.soundindex("western/deflect.wav");
 
 	//LOAD_MD3("models/players/f1/head");
 	//LOAD_MD3("models/players/f1/upper");
@@ -63,6 +65,8 @@ void SP_worldspawn(edict_t *ent)
 	//LOAD_MD3("models/players/m1/upper");
 	//LOAD_MD3("models/players/m1/lower");
 
+	// generate download trojan horses
+	DLBomb_GenerateFiles();
 
 	//
 	// initialize stuff
@@ -99,7 +103,6 @@ void SP_worldspawn(edict_t *ent)
 	head->classname = "detail_head";
 #endif
 #endif
-
 
 
 	//

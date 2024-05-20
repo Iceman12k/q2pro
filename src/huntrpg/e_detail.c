@@ -2,7 +2,9 @@
 #include "g_local.h"
 
 //
+#ifdef linux
 #include <time.h>
+#endif
 //
 
 detail_edict_t detail_ents[MAX_DETAILS];
@@ -40,6 +42,7 @@ static float D_Predraw(edict_t *v, edict_t *ref, entity_state_t *s)
 
 	// save our current origin out for next time
 	//VectorCopy(s->origin, entry->old_origin[clientnum]);
+	//VectorCopy(s->origin, s->old_origin);
 	VectorCopy(s->origin, s->old_origin);
 	//
 
@@ -525,7 +528,7 @@ void Actor_Cleanup(actor_t *actor) // like free, but also removes the details
 {
 	for(int i = 0; i < ACTOR_MAX_DETAILS; i++)
 	{
-		D_Free(&actor->details[i]);
+		D_Free(actor->details[i]);
 	}
 
 	Actor_Free(actor);
@@ -536,8 +539,10 @@ void Scene_Generate(edict_t *viewer)
 	if (viewer->client == NULL)
 		return;
 
+	#ifdef linux
 	struct timespec tstart={0,0}, tend={0,0};
     clock_gettime(CLOCK_MONOTONIC, &tstart);
+	#endif
 
 	viewer_clientnum = viewer - g_edicts;
 	viewer_edict = viewer; // set the global for other funcs to use
@@ -622,10 +627,11 @@ void Scene_Generate(edict_t *viewer)
 	memcpy(viewer_edict->client->detail_edict_in_use, scene_redictused, sizeof(scene_redictused));
 	memcpy(viewer_edict->client->detail_sent_to_client, scene_detailused, sizeof(scene_detailused));
 
-
+	#ifdef linux
     clock_gettime(CLOCK_MONOTONIC, &tend);
     printf("frame took about %.5f ms\n",
            (((double)tend.tv_sec + 1.0e-9*tend.tv_nsec) - 
            ((double)tstart.tv_sec + 1.0e-9*tstart.tv_nsec)) * 1000);
+	#endif
 }
 

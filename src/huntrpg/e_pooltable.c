@@ -279,7 +279,6 @@ void pooltable_user(edict_t *tent, pooltable_t *table)
 				VectorSubtract(table->ball[POOLCUE].origin, cue_oldorg, diff);
 				VectorScale(diff, 1.0/FRAMETIME, diff);
 				float mag = VectorLength(diff);
-				float linedot = 0;
 
 				//VectorMA(table->ball[POOLCUE].origin, dot, forward, diff);
 				VectorSubtract(table->ball[BALL_CUE].origin, cue_oldorg, diff);
@@ -295,7 +294,7 @@ void pooltable_user(edict_t *tent, pooltable_t *table)
 	}
 }
 
-void pooltable_physics(edict_t *ent)
+float pooltable_physics(edict_t *ent)
 {
 	pooltable_t *table = ent->data;
 	int ang = ent->s.angles[YAW] - 90;
@@ -379,7 +378,14 @@ void pooltable_physics(edict_t *ent)
 				continue;
 
 			// add velocity to origin
-			VectorMA(ball->origin, delta, ball->velocity, ball->origin);
+			vec3_t clamp_vel;
+			VectorCopy(ball->velocity, clamp_vel);
+			if (VectorLength(clamp_vel) * delta > BALL_RADIUS)
+			{
+				VectorNormalize(clamp_vel);
+				VectorScale(clamp_vel, BALL_RADIUS / delta, clamp_vel);
+			}
+			VectorMA(ball->origin, delta, clamp_vel, ball->origin);
 			
 			// friction
 			vec3_t friction;

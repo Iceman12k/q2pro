@@ -60,7 +60,7 @@ static void H_HotbarJob(edict_t *ent, gclient_t *client)
 
 		for (int i = INVEN_HOTBAR_START; i < INVEN_TOTALSLOTS; i++)
 		{
-			if (client->hotbar_selected == i)
+			if (client->hotbar_wanted == i)
 			{
 				Q_scnprintf(temp_s, HUD_JOB_SIZE,
 					" "

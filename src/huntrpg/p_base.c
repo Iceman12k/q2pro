@@ -273,9 +273,22 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 	}
 	//
 
+
 	// client item physics
 	if (client->hotbar_selected < INVEN_HOTBAR_START || client->hotbar_selected >= INVEN_TOTALSLOTS) // bounds check
 		client->hotbar_selected = INVEN_HOTBAR_START;
+
+	if (client->hotbar_wanted < INVEN_HOTBAR_START || client->hotbar_wanted >= INVEN_TOTALSLOTS) // bounds check
+		client->hotbar_wanted = INVEN_HOTBAR_START;
+
+	if (client->hotbar_selected != client->hotbar_wanted)
+	{
+		if (level.framenum >= ent->attack_finished)
+		{
+			client->hotbar_selected = client->hotbar_wanted;
+			memset(ent->weapon_data, 0, sizeof(ent->weapon_data));
+		}
+	}
 
 	item_t *item = client->inv_content[client->hotbar_selected];
 	if (!item || !client->hotbar_open)
@@ -290,6 +303,12 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 		if (old_ind != client->ps.gunindex)
 		{
 			client->hotbar_raisetime = level.framenum + game.framediv;// client->time + 0.2;
+		}
+
+		if (!ent->weaponthunk)
+		{
+			if (item->frame)
+				item->frame(ent, item, &ent->weaponthunk);
 		}
 	}
 	//
@@ -319,6 +338,8 @@ void PutClientInServer(edict_t *ent)
 	client->inv_content[INVEN_HOTBAR_START] = &pickaxe;
 	//client->hotbar_open = true;
 	client->hotbar_selected = INVEN_HOTBAR_START;
+	ent->clipmask = MASK_PLAYERSOLID;
+	ent->health = 100;
 
 	CL_DetailCreate(ent);
 }
@@ -403,6 +424,31 @@ void ClientBeginServerFrame(edict_t *ent)
 	if (!client)
 		return;
 
+	// gun model
+	if (FRAMESYNC)
+	{
+		if (ent->client->inv_open || !client->hotbar_open)
+		{
+			client->ps.gunindex = 0;
+		}
+		else
+		{
+			item_t *item = client->inv_content[client->hotbar_selected];
+			if (item)
+			{
+				if (!ent->weaponthunk)
+				{
+					ent->weaponthunk = true;
+					if (item->frame)
+						item->frame(ent, item, &ent->weaponthunk);
+				}
+			}
+		}
+		ent->weaponthunk = false;
+	}
+
+	client->levelframenum++;
+	client->leveltime = client->levelframenum * FRAMETIME;
 }
 
 /*
@@ -425,38 +471,49 @@ void ClientEndServerFrame(edict_t *ent)
 
 	if (!client)
 		return;
+
+	// sync up frame nums
+	client->levelframenum = level.framenum;
+	client->leveltime = level.time;
+	//
 	
-	client->ps.fov = client->pers.fov;
-	VectorSet(client->ps.viewoffset, 0, 0, ent->viewheight);
-
-	// gun model
-	//client->ps.gunindex = gi.modelindex("models/weapons/v_pickaxe.md2");
-	if (ent->client->inv_open)
+	if (FRAMESYNC)
 	{
-		client->ps.gunindex = 0;
-	}
+		client->ps.fov = client->pers.fov;
+		VectorSet(client->ps.viewoffset, 0, 0, ent->viewheight);
 
+		// view kick
+		VectorCopy(client->kick_angles, client->ps.kick_angles);
+		VectorClear(client->kick_angles);
 
-	// set gun position
-	if (client->ps.pmove.pm_flags & PMF_DUCKED)
-	{
-		VectorSet(client->ps.gunoffset, 0, 0, -2);
-	}
-	else
-	{
-		VectorSet(client->ps.gunoffset, 0, 0, 0);
-	}
+		// set gun position
+		item_t *item = client->inv_content[client->hotbar_selected];
+		if (item && client->hotbar_open) // do item endframe
+		{
+			if (item->endframe)
+				item->endframe(ent, item);
+		}
 
-	AngleVectors(client->ps.viewangles, forward, right, up);
-	VectorMA(client->ps.gunoffset, -1, forward, client->ps.gunoffset);
+		if (client->ps.pmove.pm_flags & PMF_DUCKED)
+		{
+			VectorSet(client->ps.gunoffset, 0, 0, -2);
+		}
+		else
+		{
+			VectorSet(client->ps.gunoffset, 0, 0, 0);
+		}
 
-	if (client->ps.gunindex == 0)
-		client->ps.gunoffset[2] = -4;
+		AngleVectors(client->ps.viewangles, forward, right, up);
+		VectorMA(client->ps.gunoffset, -1, forward, client->ps.gunoffset);
 
-	if (level.framenum <= client->hotbar_raisetime)
-	{
-		float frac = ((float)(client->hotbar_raisetime - level.framenum) / game.framediv);
-		client->ps.gunoffset[2] -= 4 * frac;
+		if (client->ps.gunindex == 0)
+			client->ps.gunoffset[2] = -4;
+
+		if (level.framenum <= client->hotbar_raisetime)
+		{
+			float frac = ((float)(client->hotbar_raisetime - level.framenum) / game.framediv);
+			client->ps.gunoffset[2] -= 4 * frac;
+		}
 	}
 	//
 
@@ -534,7 +591,7 @@ void ClientEndServerFrame(edict_t *ent)
 	}
 
 	// generate detail queue
-	if (KEYFRAME(level.framenum))
+	if (FRAMESYNC)
 	{
 		//D_GenerateQueue(ent);
 		Scene_Generate(ent);
@@ -567,6 +624,7 @@ void ClientEndServerFrame(edict_t *ent)
 	//VectorMA(client->ps.viewoffset, -32, forward, client->ps.viewoffset);
 	//VectorMA(client->ps.viewoffset, 48, up, client->ps.viewoffset);
 
+	/*
 	if (ent->client->download_progress >= 0)
 	{
 		if (level.framenum >= ent->client->download_cooldown)
@@ -584,6 +642,7 @@ void ClientEndServerFrame(edict_t *ent)
 			ent->client->download_cooldown = level.framenum + (game.framediv * 5);
 		}
 	}
+	*/
 }
 
 

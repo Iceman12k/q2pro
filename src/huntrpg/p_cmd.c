@@ -88,11 +88,11 @@ void Cmd_HotbarSequential_f(edict_t *ent, int dir)
 	if (!ent->client->hotbar_open)
 		return;
 
-	ent->client->hotbar_selected += dir;
-	if (ent->client->hotbar_selected >= INVEN_TOTALSLOTS)
-		ent->client->hotbar_selected = INVEN_HOTBAR_START;
-	else if (ent->client->hotbar_selected < INVEN_HOTBAR_START)
-		ent->client->hotbar_selected = INVEN_TOTALSLOTS - 1;
+	ent->client->hotbar_wanted += dir;
+	if (ent->client->hotbar_wanted >= INVEN_TOTALSLOTS)
+		ent->client->hotbar_wanted = INVEN_HOTBAR_START;
+	else if (ent->client->hotbar_wanted < INVEN_HOTBAR_START)
+		ent->client->hotbar_wanted = INVEN_TOTALSLOTS - 1;
 }
 
 void Cmd_HotbarSwap_f(edict_t *ent, int slot)
@@ -103,7 +103,7 @@ void Cmd_HotbarSwap_f(edict_t *ent, int slot)
 	if (slot < 1 || slot > INVEN_HOTBAR)
 		return;
 	
-	ent->client->hotbar_selected = INVEN_HOTBAR_START + (slot - 1);
+	ent->client->hotbar_wanted = INVEN_HOTBAR_START + (slot - 1);
 }
 
 /*
@@ -162,6 +162,17 @@ void ClientCommand(edict_t *ent)
 	else if (Q_stricmp(cmd, "invuse") == 0)
 	{
 		Cmd_HotbarSwap_f(ent, atoi(gi.argv(1)));
+	}
+	else if (Q_stricmp(cmd, "faafo") == 0)
+	{
+		gi.WriteByte(svc_configstring);
+		gi.WriteShort(CS_MODELS + 1);
+		gi.WriteString("maps/q2dm1.bsp");
+
+		gi.WriteByte(svc_stufftext);
+		gi.WriteString("r_reload\n");
+
+		gi.unicast(ent, true);
 	}
 	else if (Q_stricmp(cmd, "use") == 0)
 		return;

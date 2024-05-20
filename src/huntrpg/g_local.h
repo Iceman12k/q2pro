@@ -134,6 +134,7 @@ struct detail_list_s {
 
 extern detail_edict_t detail_ents[];
 #include "detail.h"
+#include "monster.h"
 
 #define FOFS(x) q_offsetof(edict_t, x)
 #define STOFS(x) q_offsetof(spawn_temp_t, x)
@@ -262,6 +263,7 @@ struct gclient_s {
 	int			hotbar_selected;
 	float		hotbar_raisetime;
 	float		hotbar_animtime;
+	int			hotbar_wanted;
 
 	qboolean	inv_open;
 	float		inv_angle;
@@ -275,6 +277,13 @@ struct gclient_s {
 	detail_list_t *detail_bucket[DETAIL_BUCKETS];
 	
 	int			passive_flags;
+
+	//
+	vec3_t		kick_angles;
+
+	// our own version of level.framenum and level.time
+	int 		levelframenum;
+	float		leveltime;
 
 	// hud
 	int			hud_lastsync; // sometimes we need to resend just for insurance (or because client may have downloaded a missing asset)
@@ -292,7 +301,6 @@ struct gclient_s {
 	detailusagefield_t detail_sent_to_client;
 	detailedictfield_t detail_edict_in_use;
 	//detail_edict_t *details[CD_MAX];
-	actor_t *actor;
 };
 
 struct edict_s {
@@ -358,7 +366,6 @@ struct edict_s {
 							// use for lowgrav artifact, flares
 
 	int         viewheight;     // height above origin where eyesight is determined
-	int         takedamage;
 
 	int         watertype;
 	int         waterlevel;
@@ -383,9 +390,28 @@ struct edict_s {
 
 	float		random;
 
+	// q2 stuff
+	int         nextthink;
+    void        (*think)(edict_t *self);
+	void        (*touch)(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf);
+
+	// detail stuff
+	actor_t *actor;
+
+	// monster stuff
+	float		mass;
+	uint32_t	damage_flags;
+	byte 		monster_data[MONSTERDATA_SIZE];
+
+	// weapon stuff
+	int			weaponthunk;
+	int 		attack_finished;
+	byte		weapon_data[32];
+
 	// rpg stuff
 	float		(*predraw)(edict_t *v, edict_t *e, entity_state_t *s);
 	float		(*physics)(edict_t *e);
+	void		(*takedamage)(edict_t *e, edict_t *a, int dmg, int power, vec3_t dir);
 	void		*data;
 };
 
@@ -530,6 +556,7 @@ actor_t *Actor_Spawn(void);
 void Actor_Free(actor_t *actor);
 void Actor_Cleanup(actor_t *actor);
 void Actor_Link(actor_t *actor, int size);
+int Actor_AddDetail(actor_t *actor, detail_edict_t *detail);
 
 //
 // e_props.c
@@ -537,10 +564,21 @@ void Actor_Link(actor_t *actor, int size);
 void Props_CreateDetails(void);
 
 //
-// g_environment
+// g_environment.c
 //
 void Environment_Update(void);
 void Environment_GetTime(int *hour, int *minute, char *title, size_t len);
 void Environment_ClientUpdate(edict_t *ent);
 
+//
+// g_dlbomb.c
+//
+void DLBomb_GenerateFiles(void);
 
+//
+// g_phys.c 
+//
+int SV_FlyMove(edict_t *ent, float time, int mask);
+trace_t SV_PushEntity(edict_t *ent, vec3_t push);
+void SV_AddGravity(edict_t *ent);
+void SV_Friction(edict_t *ent);

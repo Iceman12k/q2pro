@@ -164,8 +164,6 @@ void Environment_ClientUpdate(edict_t *ent)
 
 	if (client->passive_flags & PASSIVE_LIGHT)
 	{
-		if (brightness < 'm')
-			brightness++;
 		if (brightness < 'g')
 			brightness++;
 	}
