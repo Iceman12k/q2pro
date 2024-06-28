@@ -264,4 +264,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define FRAME_deathc7           242
 #define FRAME_deathc8           243
 
+#define FRAME_pain_r_armblowoff1 42
+#define FRAME_pain_r_armblowoff2 43
+#define FRAME_pain_r_armblowoff3 44
+#define FRAME_pain_r_armblowoff4 45
+#define FRAME_pain_r_armblowoff5 46
+#define FRAME_pain_r_armblowoff6 47
+
 #define MODEL_SCALE     1.000000

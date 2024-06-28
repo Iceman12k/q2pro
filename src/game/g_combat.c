@@ -451,6 +451,20 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
     if (!(dflags & DAMAGE_NO_PROTECTION) && CheckTeamDamage(targ, attacker))
         return;
 
+    // Reki (June 28 2024): Add to dmg thresholds
+    if (dflags & DAMAGE_ENERGY)
+    {
+        targ->dmg_taken_energy += take;
+
+        // Energy does less damage to corpses
+        if (targ->health <= 0)
+            take = ceil((float)take * 0.1);
+    }
+    else
+    {
+        targ->dmg_taken_shred += take;
+    }
+
 // do the damage
     if (take) {
         if ((targ->svflags & SVF_MONSTER) || (client))

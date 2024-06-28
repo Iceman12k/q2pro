@@ -277,6 +277,7 @@ extern void barrel_explode(edict_t *);
 extern void barrel_touch(edict_t *, edict_t *, cplane_t *, csurface_t *);
 extern void berserk_die(edict_t *, edict_t *, edict_t *, int, vec3_t);
 extern void berserk_melee(edict_t *);
+extern void berserk_overhead_melee(edict_t *);
 extern void berserk_pain(edict_t *, edict_t *, float, int);
 extern void berserk_run(edict_t *);
 extern void berserk_search(edict_t *);
@@ -1178,6 +1179,7 @@ const save_ptr_t save_ptrs[] = {
 { P_monsterinfo_attack, soldier_attack },
 { P_monsterinfo_attack, supertank_attack },
 { P_monsterinfo_attack, tank_attack },
+{ P_monsterinfo_attack, berserk_overhead_melee },
 { P_monsterinfo_melee, berserk_melee },
 { P_monsterinfo_melee, brain_melee },
 { P_monsterinfo_melee, chick_melee },

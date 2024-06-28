@@ -28,10 +28,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "shared/game.h"
 
 // features this game supports
-#define G_FEATURES  (GMF_PROPERINUSE|GMF_WANT_ALL_DISCONNECTS|GMF_ENHANCED_SAVEGAMES)
+#define G_FEATURES  (GMF_PROPERINUSE|GMF_WANT_ALL_DISCONNECTS|GMF_ENHANCED_SAVEGAMES|GMF_PROTOCOL_EXTENSIONS)
 
 // the "gameversion" client command will print this plus compile date
-#define GAMEVERSION "baseq2"
+#define GAMEVERSION "br2"
 
 // protocol bytes that can be directly added to messages
 #define svc_muzzleflash     1
@@ -1047,6 +1047,9 @@ struct edict_s {
     float       dmg_radius;
     int         sounds;         // make this a spawntemp var?
     int         count;
+    int         dmg_taken_shred;
+    int         dmg_taken_energy;
+    int         dmg_bleedout_frame;
 
     edict_t     *chain;
     edict_t     *enemy;
