@@ -58,6 +58,8 @@ typedef struct actor_s {
 
     // begin fields
     int cnt;
+    int anextthink;
+    void (*athink)(actor_t *self);
 } actor_t;
 
 extern actor_t actor_list[MAX_ACTORS];

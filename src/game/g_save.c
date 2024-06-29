@@ -481,7 +481,9 @@ static const save_field_t detailfields[] = {
     F(angle),
     V(movedir),
     V(velocity),
-
+    I(clipmask),
+    I(dmg),
+    
     {0}
 #undef _OFS
 };
@@ -500,6 +502,8 @@ static const save_field_t actorfields[] = {
     DETA(details, ACTOR_MAX_DETAILS),
 
     I(cnt),
+    I(anextthink),
+    P(athink, P_athink),
 
     {0}
 #undef _OFS

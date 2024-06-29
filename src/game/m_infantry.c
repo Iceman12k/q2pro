@@ -41,6 +41,8 @@ static int  sound_sight;
 static int  sound_search;
 static int  sound_idle;
 
+static int  sound_plasmashot;
+
 static const mframe_t infantry_frames_stand[] = {
     { ai_stand, 0, NULL },
     { ai_stand, 0, NULL },
@@ -529,7 +531,7 @@ static void infantry_precache(void)
 
 /*QUAKED monster_infantry (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
 */
-void SP_monster_infantry2(edict_t *self)
+void SP_monster_infantry(edict_t *self)
 {
     if (deathmatch->value) {
         G_FreeEdict(self);
@@ -574,6 +576,7 @@ static void infantry_energy_precache(void)
 {
     infantry_precache();
     gi.modelindex("models/misc/plasma/tris.md2");
+    sound_plasmashot = gi.soundindex("weapons/plasma/fire.wav");
 }
 
 void InfantryPlasmaGun(edict_t *self)
@@ -583,13 +586,13 @@ void InfantryPlasmaGun(edict_t *self)
     vec3_t  vec;
     int     flash_number;
 
-    if (self->s.frame == FRAME_attak111) {
+    if (self->s.frame == FRAME_attak311) {
         flash_number = MZ2_INFANTRY_MACHINEGUN_1;
         AngleVectors(self->s.angles, forward, right, NULL);
         G_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
 
         if (self->enemy) {
-            VectorMA(self->enemy->s.origin, -0.2f, self->enemy->velocity, target);
+            VectorMA(self->enemy->s.origin, 0.15f, self->enemy->velocity, target);
             target[2] += self->enemy->viewheight;
             VectorSubtract(target, start, forward);
             VectorNormalize(forward);
@@ -606,7 +609,17 @@ void InfantryPlasmaGun(edict_t *self)
         AngleVectors(vec, forward, NULL, NULL);
     }
 
-    monster_fire_blaster(self, start, forward, 12, 600, flash_number, EF_BLUEHYPERBLASTER);
+
+    gi.WriteByte(svc_muzzleflash);
+    gi.WriteShort(self - g_edicts);
+    gi.WriteByte(MZ_BLUEHYPERBLASTER);
+    gi.multicast(self->s.origin, MULTICAST_PVS);
+
+    forward[0] += crandom() * 0.03;
+    forward[1] += crandom() * 0.03;
+    forward[2] += random() * 0.04;
+    gi.sound(self, CHAN_ITEM, sound_plasmashot, 1, ATTN_NORM, 0);
+    fire_plasma(self, start, forward, 8, 700, EF_BLUEHYPERBLASTER | EF_GRENADE, -1);
 }
 
 void infantry_energy_fire(edict_t *self)
@@ -722,15 +735,14 @@ void infantry_energy_die(edict_t *self, edict_t *inflictor, edict_t *attacker, i
     }
 }
 
-//void SP_monster_infantry_energy(edict_t *self)
-void SP_monster_infantry(edict_t *self)
+void SP_monster_infantry_energy(edict_t *self)
 {
     if (deathmatch->value) {
         G_FreeEdict(self);
         return;
     }
 
-    G_AddPrecache(infantry_precache);
+    G_AddPrecache(infantry_energy_precache);
 
     self->movetype = MOVETYPE_STEP;
     self->solid = SOLID_BBOX;

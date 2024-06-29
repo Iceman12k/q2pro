@@ -320,6 +320,24 @@ void Actor_Cleanup(actor_t *actor) // like free, but also removes the details
 	Actor_Free(actor);
 }
 
+bool Actor_RunThink(actor_t *actor)
+{
+    int     thinktime;
+
+    thinktime = actor->anextthink;
+    if (thinktime <= 0)
+        return true;
+    if (thinktime > level.framenum)
+        return true;
+
+    actor->anextthink = 0;
+    if (!actor->athink)
+        gi.error("NULL actor->athink");
+    actor->athink(actor);
+
+    return false;
+}
+
 void Scene_Generate(edict_t *viewer)
 {
 	if (viewer->client == NULL)

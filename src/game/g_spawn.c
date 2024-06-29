@@ -147,6 +147,8 @@ void SP_turret_breach(edict_t *self);
 void SP_turret_base(edict_t *self);
 void SP_turret_driver(edict_t *self);
 
+void SP_monster_infantry_energy(edict_t *self);
+
 static const spawn_func_t spawn_funcs[] = {
     { "item_health", SP_item_health },
     { "item_health_small", SP_item_health_small },
@@ -267,6 +269,9 @@ static const spawn_func_t spawn_funcs[] = {
     { "turret_breach", SP_turret_breach },
     { "turret_base", SP_turret_base },
     { "turret_driver", SP_turret_driver },
+
+    // Reki (June 29 2024): New ents
+    { "monster_infantry_energy", SP_monster_infantry_energy },
 
     { NULL, NULL }
 };

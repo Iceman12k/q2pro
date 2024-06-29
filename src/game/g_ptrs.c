@@ -132,6 +132,8 @@ extern const mmove_t hover_move_run;
 extern const mmove_t hover_move_stand;
 extern const mmove_t hover_move_start_attack;
 extern const mmove_t hover_move_walk;
+extern const mmove_t infantry_energy_move_attack1;
+extern const mmove_t infantry_energy_move_death2;
 extern const mmove_t infantry_move_attack1;
 extern const mmove_t infantry_move_attack2;
 extern const mmove_t infantry_move_death1;
@@ -269,6 +271,7 @@ extern int berserk_actor_addtoscene(actor_t *, int);
 extern int berserk_actor_physics(actor_t *);
 extern int D_IsVisible(edict_t *, edict_t *);
 extern int D_Predraw(edict_t *, edict_t *, entity_state_t *, entity_state_extension_t *);
+extern int plasma_aphysics(actor_t *);
 extern void actor_attack(edict_t *);
 extern void actor_die(edict_t *, edict_t *, edict_t *, int, vec3_t);
 extern void actor_pain(edict_t *, edict_t *, float, int);
@@ -430,8 +433,10 @@ extern void hover_walk(edict_t *);
 extern void hurt_touch(edict_t *, edict_t *, cplane_t *, csurface_t *);
 extern void hurt_use(edict_t *, edict_t *, edict_t *);
 extern void infantry_attack(edict_t *);
+extern void infantry_attack_energy(edict_t *);
 extern void infantry_die(edict_t *, edict_t *, edict_t *, int, vec3_t);
 extern void infantry_dodge(edict_t *, edict_t *, float);
+extern void infantry_energy_die(edict_t *, edict_t *, edict_t *, int, vec3_t);
 extern void infantry_fidget(edict_t *);
 extern void infantry_pain(edict_t *, edict_t *, float, int);
 extern void infantry_run(edict_t *);
@@ -803,6 +808,7 @@ const save_ptr_t save_ptrs[] = {
 { P_die, gunner_die },
 { P_die, hover_die },
 { P_die, infantry_die },
+{ P_die, infantry_energy_die },
 { P_die, insane_die },
 { P_die, jorg_die },
 { P_die, makron_die },
@@ -951,6 +957,8 @@ const save_ptr_t save_ptrs[] = {
 { P_monsterinfo_currentmove, &hover_move_stand },
 { P_monsterinfo_currentmove, &hover_move_start_attack },
 { P_monsterinfo_currentmove, &hover_move_walk },
+{ P_monsterinfo_currentmove, &infantry_energy_move_attack1 },
+{ P_monsterinfo_currentmove, &infantry_energy_move_death2 },
 { P_monsterinfo_currentmove, &infantry_move_attack1 },
 { P_monsterinfo_currentmove, &infantry_move_attack2 },
 { P_monsterinfo_currentmove, &infantry_move_death1 },
@@ -1182,6 +1190,7 @@ const save_ptr_t save_ptrs[] = {
 { P_monsterinfo_attack, gunner_attack },
 { P_monsterinfo_attack, hover_start_attack },
 { P_monsterinfo_attack, infantry_attack },
+{ P_monsterinfo_attack, infantry_attack_energy },
 { P_monsterinfo_attack, jorg_attack },
 { P_monsterinfo_attack, makron_attack },
 { P_monsterinfo_attack, medic_attack },
@@ -1223,6 +1232,7 @@ const save_ptr_t save_ptrs[] = {
 { P_isvisible, D_IsVisible },
 { P_predraw, D_Predraw },
 { P_aphysics, berserk_actor_physics },
+{ P_aphysics, plasma_aphysics },
 { P_aaddtoscene, berserk_actor_addtoscene },
 };
 const int num_save_ptrs = sizeof(save_ptrs) / sizeof(save_ptrs[0]);

@@ -358,6 +358,169 @@ void fire_blaster(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
 
 /*
 =================
+fire_plasma
+
+Fires a single plasma bolt.
+=================
+*/
+void plasma_touch(actor_t *actor, edict_t *other, cplane_t *plane, csurface_t *surf)
+{
+    detail_edict_t *bolt = actor->details[0];
+    vec_t   *normal = NULL;
+    int     mod;
+
+    if (other == bolt->owner)
+        return;
+
+    if (surf && (surf->flags & SURF_SKY)) {
+        Actor_Cleanup(actor);
+        return;
+    }
+
+    if (plane)
+        normal = plane->normal;
+
+    if (other->takedamage) {
+        mod = MOD_HYPERBLASTER;
+        T_Damage(other, world, actor->owner, bolt->velocity, bolt->s.origin, normal, bolt->dmg, 1, DAMAGE_ENERGY, mod);
+    } else {
+        gi.WriteByte(svc_temp_entity);
+        gi.WriteByte(TE_FLECHETTE);
+        gi.WritePosition(bolt->s.origin);
+        gi.WriteDir(normal);
+        gi.multicast(bolt->s.origin, MULTICAST_PVS);
+    }
+
+    Actor_Cleanup(actor);
+}
+
+void plasma_runphysics(actor_t *actor, float delta)
+{
+    vec3_t end;
+    trace_t trace;
+    detail_edict_t *bolt = actor->details[0];
+    VectorMA(bolt->s.origin, delta, bolt->velocity, end);
+    trace = gi.trace(bolt->s.origin, NULL, NULL, end, actor->owner, bolt->clipmask);
+    VectorCopy(trace.endpos, bolt->s.origin);
+    VectorCopy(bolt->s.origin, actor->origin);
+    Actor_Link(actor, 128);
+
+    if (trace.fraction < 1.0)
+    {
+        plasma_touch(actor, trace.ent, &trace.plane, &trace.surface);
+    }
+    else
+    {
+        Actor_RunThink(actor);
+    }
+}
+
+void plasma_aphysics(actor_t *actor)
+{
+    if (actor->cnt < 0)
+    {
+        actor->cnt++;
+        plasma_runphysics(actor, 0);
+        return;
+    }
+
+    plasma_runphysics(actor, FRAMETIME);
+}
+
+void fire_plasma(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect, float delta)
+{
+    actor_t *actor;
+    detail_edict_t *bolt;
+    trace_t tr;
+    static int plasma_skin = 0;
+    plasma_skin = !plasma_skin;
+
+    VectorNormalize(dir);
+
+    actor = Actor_Spawn();
+    actor->aphysics = plasma_aphysics;
+    actor->details[0] = bolt = D_Spawn();
+    actor->owner = self;
+
+    bolt->s.modelindex = gi.modelindex("models/misc/plasma/tris.md2");
+    bolt->s.skinnum = plasma_skin;
+    VectorCopy(start, bolt->s.origin);
+    VectorCopy(start, bolt->s.old_origin);
+    vectoangles(dir, bolt->s.angles);
+    VectorScale(dir, speed, bolt->velocity);
+
+    bolt->clipmask = MASK_SHOT;
+    bolt->s.effects |= effect;
+    bolt->s.renderfx |= RF_NOSHADOW | RF_FULLBRIGHT | RF_TRANSLUCENT;
+
+    bolt->s.sound = gi.soundindex("misc/lasfly.wav");
+    bolt->dmg = damage;
+
+    actor->anextthink = level.framenum + 2 * BASE_FRAMERATE;
+    actor->athink = Actor_Cleanup;
+
+    if (self->client)
+        check_dodge(self, bolt->s.origin, dir, speed);
+    
+    tr = gi.trace(self->s.origin, NULL, NULL, bolt->s.origin, bolt, MASK_SHOT);
+    if (tr.fraction < 1.0f) {
+        VectorMA(bolt->s.origin, -10, dir, bolt->s.origin);
+        plasma_touch(actor, tr.ent, &tr.plane, &tr.surface);
+    }
+
+    if (delta > 0)
+    {
+        plasma_runphysics(actor, delta);
+    }
+    else if (delta < 0)
+    {
+        actor->cnt = delta;
+    }
+
+    /*
+    bolt = G_Spawn();
+    bolt->svflags = SVF_DEADMONSTER;
+    // yes, I know it looks weird that projectiles are deadmonsters
+    // what this means is that when prediction is used against the object
+    // (blaster/hyperblaster shots), the player won't be solid clipped against
+    // the object.  Right now trying to run into a firing hyperblaster
+    // is very jerky since you are predicted 'against' the shots.
+    VectorCopy(start, bolt->s.origin);
+    VectorCopy(start, bolt->s.old_origin);
+    vectoangles(dir, bolt->s.angles);
+    VectorScale(dir, speed, bolt->velocity);
+    bolt->movetype = MOVETYPE_FLYMISSILE;
+    bolt->clipmask = MASK_SHOT;
+    bolt->solid = SOLID_BBOX;
+    bolt->s.effects |= effect;
+    bolt->s.renderfx |= RF_NOSHADOW;
+    VectorClear(bolt->mins);
+    VectorClear(bolt->maxs);
+    bolt->s.modelindex = gi.modelindex("models/objects/laser/tris.md2");
+    bolt->s.sound = gi.soundindex("misc/lasfly.wav");
+    bolt->owner = self;
+    bolt->touch = blaster_touch;
+    bolt->nextthink = level.framenum + 2 * BASE_FRAMERATE;
+    bolt->think = G_FreeEdict;
+    bolt->dmg = damage;
+    bolt->classname = "bolt";
+    if (hyper)
+        bolt->spawnflags = 1;
+    gi.linkentity(bolt);
+
+    if (self->client)
+        check_dodge(self, bolt->s.origin, dir, speed);
+
+    tr = gi.trace(self->s.origin, NULL, NULL, bolt->s.origin, bolt, MASK_SHOT);
+    if (tr.fraction < 1.0f) {
+        VectorMA(bolt->s.origin, -10, dir, bolt->s.origin);
+        bolt->touch(bolt, tr.ent, NULL, NULL);
+    }
+    */
+}
+
+/*
+=================
 fire_grenade
 =================
 */

@@ -30,6 +30,7 @@ typedef enum {
     P_aphysics,
     P_predraw,
     P_dpredraw,
+    P_athink,
 } ptr_type_t;
 
 typedef struct {

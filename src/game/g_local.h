@@ -255,6 +255,8 @@ struct detail_edict_s {
     float angle;
     vec3_t movedir;
     vec3_t velocity;
+    int clipmask;
+    int dmg;
 };
 
 struct detail_list_s {
@@ -796,6 +798,7 @@ bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick);
 void fire_bullet(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int mod);
 void fire_shotgun(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, int mod);
 void fire_blaster(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, int effect, bool hyper);
+void fire_plasma(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect, float delta);
 void fire_grenade(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, float timer, float damage_radius);
 void fire_grenade2(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, float timer, float damage_radius, bool held);
 void fire_rocket(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius, int radius_damage);
@@ -901,6 +904,7 @@ void Actor_Free(actor_t *actor);
 void Actor_Cleanup(actor_t *actor);
 void Actor_Link(actor_t *actor, int size);
 int Actor_AddDetail(actor_t *actor, detail_edict_t *detail);
+bool Actor_RunThink(actor_t *ent);
 
 //============================================================================
 
