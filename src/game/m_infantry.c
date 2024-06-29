@@ -529,7 +529,7 @@ static void infantry_precache(void)
 
 /*QUAKED monster_infantry (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
 */
-void SP_monster_infantry(edict_t *self)
+void SP_monster_infantry2(edict_t *self)
 {
     if (deathmatch->value) {
         G_FreeEdict(self);
@@ -556,6 +556,200 @@ void SP_monster_infantry(edict_t *self)
     self->monsterinfo.run = infantry_run;
     self->monsterinfo.dodge = infantry_dodge;
     self->monsterinfo.attack = infantry_attack;
+    self->monsterinfo.melee = NULL;
+    self->monsterinfo.sight = infantry_sight;
+    self->monsterinfo.idle = infantry_fidget;
+
+    gi.linkentity(self);
+
+    self->monsterinfo.currentmove = &infantry_move_stand;
+    self->monsterinfo.scale = MODEL_SCALE;
+
+    walkmonster_start(self);
+}
+
+
+// Energy Infantry
+static void infantry_energy_precache(void)
+{
+    infantry_precache();
+    gi.modelindex("models/misc/plasma/tris.md2");
+}
+
+void InfantryPlasmaGun(edict_t *self)
+{
+    vec3_t  start, target;
+    vec3_t  forward, right;
+    vec3_t  vec;
+    int     flash_number;
+
+    if (self->s.frame == FRAME_attak111) {
+        flash_number = MZ2_INFANTRY_MACHINEGUN_1;
+        AngleVectors(self->s.angles, forward, right, NULL);
+        G_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
+
+        if (self->enemy) {
+            VectorMA(self->enemy->s.origin, -0.2f, self->enemy->velocity, target);
+            target[2] += self->enemy->viewheight;
+            VectorSubtract(target, start, forward);
+            VectorNormalize(forward);
+        } else {
+            AngleVectors(self->s.angles, forward, right, NULL);
+        }
+    } else {
+        flash_number = MZ2_INFANTRY_MACHINEGUN_2 + (self->s.frame - FRAME_death211);
+
+        AngleVectors(self->s.angles, forward, right, NULL);
+        G_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
+
+        VectorSubtract(self->s.angles, aimangles[flash_number - MZ2_INFANTRY_MACHINEGUN_2], vec);
+        AngleVectors(vec, forward, NULL, NULL);
+    }
+
+    monster_fire_blaster(self, start, forward, 12, 600, flash_number, EF_BLUEHYPERBLASTER);
+}
+
+void infantry_energy_fire(edict_t *self)
+{
+    if (level.framenum >= self->monsterinfo.pause_framenum)
+        self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
+    else
+        self->monsterinfo.aiflags |= AI_HOLD_FRAME;
+
+    if (level.framenum % 2 == 0)
+        InfantryPlasmaGun(self);
+}
+
+void infantry_energy_cock_gun(edict_t *self)
+{
+    int     n;
+
+    gi.sound(self, CHAN_WEAPON, sound_weapon_cock, 1, ATTN_NORM, 0);
+    n = (Q_rand() & 6) + 12 + 7;
+    self->monsterinfo.pause_framenum = level.framenum + n;
+}
+
+static const mframe_t infantry_energy_frames_attack1[] = {
+    { ai_charge, 4,  NULL },
+    { ai_charge, -1, NULL },
+    { ai_charge, -1, NULL },
+    { ai_charge, 0,  infantry_energy_cock_gun },
+    { ai_charge, -1, NULL },
+    { ai_charge, 1,  NULL },
+    { ai_charge, 1,  NULL },
+    { ai_charge, 2,  NULL },
+    { ai_charge, -2, NULL },
+    { ai_charge, -3, NULL },
+    { ai_charge, 1,  infantry_energy_fire },
+    { ai_charge, 5,  NULL },
+    { ai_charge, -1, NULL },
+    { ai_charge, -2, NULL },
+    { ai_charge, -3, NULL }
+};
+const mmove_t infantry_energy_move_attack1 = {FRAME_attak301, FRAME_attak315, infantry_energy_frames_attack1, infantry_run};
+
+// Off with his head
+static const mframe_t infantry_energy_frames_death2[] = {
+    { ai_move, 0,   NULL },
+    { ai_move, 1,   NULL },
+    { ai_move, 5,   NULL },
+    { ai_move, -1,  NULL },
+    { ai_move, 0,   NULL },
+    { ai_move, 1,   NULL },
+    { ai_move, 1,   NULL },
+    { ai_move, 4,   NULL },
+    { ai_move, 3,   NULL },
+    { ai_move, 0,   NULL },
+    { ai_move, -2,  NULL },
+    { ai_move, -2,  InfantryPlasmaGun },
+    { ai_move, -3,  NULL },
+    { ai_move, -1,  InfantryPlasmaGun },
+    { ai_move, -2,  NULL },
+    { ai_move, 0,   InfantryPlasmaGun },
+    { ai_move, 2,   NULL },
+    { ai_move, 2,   InfantryPlasmaGun },
+    { ai_move, 3,   NULL },
+    { ai_move, -10, InfantryPlasmaGun },
+    { ai_move, -7,  NULL },
+    { ai_move, -8,  InfantryPlasmaGun },
+    { ai_move, -6,  NULL },
+    { ai_move, 4,   NULL },
+    { ai_move, 0,   NULL }
+};
+const mmove_t infantry_energy_move_death2 = {FRAME_death201, FRAME_death225, infantry_energy_frames_death2, infantry_dead};
+
+void infantry_attack_energy(edict_t *self)
+{
+    if (range(self, self->enemy) == RANGE_MELEE)
+        self->monsterinfo.currentmove = &infantry_move_attack2;
+    else
+        self->monsterinfo.currentmove = &infantry_energy_move_attack1;
+}
+
+void infantry_energy_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
+{
+    int     n;
+
+// check for gib
+    if (self->health <= self->gib_health) {
+        gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
+        for (n = 0; n < 2; n++)
+            ThrowGib(self, "models/objects/gibs/bone/tris.md2", damage, GIB_ORGANIC);
+        for (n = 0; n < 4; n++)
+            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_ORGANIC);
+        ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_ORGANIC);
+        self->deadflag = DEAD_DEAD;
+        return;
+    }
+
+    if (self->deadflag == DEAD_DEAD)
+        return;
+
+// regular death
+    self->deadflag = DEAD_DEAD;
+    self->takedamage = DAMAGE_YES;
+
+    n = Q_rand() % 3;
+    if (n == 0) {
+        self->monsterinfo.currentmove = &infantry_move_death1;
+        gi.sound(self, CHAN_VOICE, sound_die2, 1, ATTN_NORM, 0);
+    } else if (n == 1) {
+        self->monsterinfo.currentmove = &infantry_energy_move_death2;
+        gi.sound(self, CHAN_VOICE, sound_die1, 1, ATTN_NORM, 0);
+    } else {
+        self->monsterinfo.currentmove = &infantry_move_death3;
+        gi.sound(self, CHAN_VOICE, sound_die2, 1, ATTN_NORM, 0);
+    }
+}
+
+//void SP_monster_infantry_energy(edict_t *self)
+void SP_monster_infantry(edict_t *self)
+{
+    if (deathmatch->value) {
+        G_FreeEdict(self);
+        return;
+    }
+
+    G_AddPrecache(infantry_precache);
+
+    self->movetype = MOVETYPE_STEP;
+    self->solid = SOLID_BBOX;
+    self->s.modelindex = gi.modelindex("models/monsters/infantry/energy_tris.md2");
+    VectorSet(self->mins, -16, -16, -24);
+    VectorSet(self->maxs, 16, 16, 32);
+
+    self->health = 100;
+    self->gib_health = -40;
+    self->mass = 200;
+
+    self->pain = infantry_pain;
+    self->die = infantry_energy_die;
+
+    self->monsterinfo.stand = infantry_stand;
+    self->monsterinfo.walk = infantry_walk;
+    self->monsterinfo.run = infantry_run;
+    self->monsterinfo.dodge = infantry_dodge;
+    self->monsterinfo.attack = infantry_attack_energy;
     self->monsterinfo.melee = NULL;
     self->monsterinfo.sight = infantry_sight;
     self->monsterinfo.idle = infantry_fidget;

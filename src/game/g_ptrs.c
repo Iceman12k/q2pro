@@ -19,12 +19,15 @@ extern const mmove_t actor_move_stand;
 extern const mmove_t actor_move_taunt;
 extern const mmove_t actor_move_walk;
 extern const mmove_t berserk_move_attack_club;
+extern const mmove_t berserk_move_attack_club_run;
 extern const mmove_t berserk_move_attack_spike;
 extern const mmove_t berserk_move_death1;
 extern const mmove_t berserk_move_death2;
 extern const mmove_t berserk_move_pain1;
 extern const mmove_t berserk_move_pain2;
+extern const mmove_t berserk_move_pain_r_armblow;
 extern const mmove_t berserk_move_run1;
+extern const mmove_t berserk_move_run2;
 extern const mmove_t berserk_move_stand;
 extern const mmove_t berserk_move_stand_fidget;
 extern const mmove_t berserk_move_walk;
@@ -262,6 +265,10 @@ extern const mmove_t tank_move_run;
 extern const mmove_t tank_move_stand;
 extern const mmove_t tank_move_start_run;
 extern const mmove_t tank_move_walk;
+extern int berserk_actor_addtoscene(actor_t *, int);
+extern int berserk_actor_physics(actor_t *);
+extern int D_IsVisible(edict_t *, edict_t *);
+extern int D_Predraw(edict_t *, edict_t *, entity_state_t *, entity_state_extension_t *);
 extern void actor_attack(edict_t *);
 extern void actor_die(edict_t *, edict_t *, edict_t *, int, vec3_t);
 extern void actor_pain(edict_t *, edict_t *, float, int);
@@ -831,12 +838,15 @@ const save_ptr_t save_ptrs[] = {
 { P_monsterinfo_currentmove, &actor_move_taunt },
 { P_monsterinfo_currentmove, &actor_move_walk },
 { P_monsterinfo_currentmove, &berserk_move_attack_club },
+{ P_monsterinfo_currentmove, &berserk_move_attack_club_run },
 { P_monsterinfo_currentmove, &berserk_move_attack_spike },
 { P_monsterinfo_currentmove, &berserk_move_death1 },
 { P_monsterinfo_currentmove, &berserk_move_death2 },
 { P_monsterinfo_currentmove, &berserk_move_pain1 },
 { P_monsterinfo_currentmove, &berserk_move_pain2 },
+{ P_monsterinfo_currentmove, &berserk_move_pain_r_armblow },
 { P_monsterinfo_currentmove, &berserk_move_run1 },
+{ P_monsterinfo_currentmove, &berserk_move_run2 },
 { P_monsterinfo_currentmove, &berserk_move_stand },
 { P_monsterinfo_currentmove, &berserk_move_stand_fidget },
 { P_monsterinfo_currentmove, &berserk_move_walk },
@@ -1163,6 +1173,7 @@ const save_ptr_t save_ptrs[] = {
 { P_monsterinfo_dodge, medic_dodge },
 { P_monsterinfo_dodge, soldier_dodge },
 { P_monsterinfo_attack, actor_attack },
+{ P_monsterinfo_attack, berserk_overhead_melee },
 { P_monsterinfo_attack, boss2_attack },
 { P_monsterinfo_attack, chick_attack },
 { P_monsterinfo_attack, floater_attack },
@@ -1179,7 +1190,6 @@ const save_ptr_t save_ptrs[] = {
 { P_monsterinfo_attack, soldier_attack },
 { P_monsterinfo_attack, supertank_attack },
 { P_monsterinfo_attack, tank_attack },
-{ P_monsterinfo_attack, berserk_overhead_melee },
 { P_monsterinfo_melee, berserk_melee },
 { P_monsterinfo_melee, brain_melee },
 { P_monsterinfo_melee, chick_melee },
@@ -1210,5 +1220,9 @@ const save_ptr_t save_ptrs[] = {
 { P_monsterinfo_checkattack, Makron_CheckAttack },
 { P_monsterinfo_checkattack, medic_checkattack },
 { P_monsterinfo_checkattack, mutant_checkattack },
+{ P_isvisible, D_IsVisible },
+{ P_predraw, D_Predraw },
+{ P_aphysics, berserk_actor_physics },
+{ P_aaddtoscene, berserk_actor_addtoscene },
 };
 const int num_save_ptrs = sizeof(save_ptrs) / sizeof(save_ptrs[0]);

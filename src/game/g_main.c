@@ -22,6 +22,8 @@ game_locals_t   game;
 level_locals_t  level;
 game_import_t   gi;
 game_export_t   globals;
+game_import_ex_t gix;
+game_export_ex_t globalsx;
 spawn_temp_t    st;
 
 int sm_meat_index;
@@ -42,7 +44,7 @@ cvar_t  *maxclients;
 cvar_t  *maxspectators;
 cvar_t  *maxentities;
 cvar_t  *g_select_empty;
-cvar_t  *g_protocol_extensions;
+//cvar_t  *g_protocol_extensions;
 cvar_t  *dedicated;
 
 cvar_t  *filterban;
@@ -86,6 +88,8 @@ void WriteLevel(const char *filename);
 void ReadLevel(const char *filename);
 void InitGame(void);
 void G_RunFrame(void);
+void G_RunDetail(detail_edict_t *ent);
+void G_RunActor(actor_t *actor);
 
 //===================================================================
 
@@ -97,6 +101,41 @@ void ShutdownGame(void)
 
     gi.FreeTags(TAG_LEVEL);
     gi.FreeTags(TAG_GAME);
+}
+
+static qboolean G_customizeentitytoclient(edict_t *viewer, edict_t *ent, customize_entity_t *c)
+{
+    c->s = ent->s;
+    c->x = ent->x;
+
+	// predraw
+	if (ent->predraw)
+	{
+        ent->predraw(viewer, ent, &(c->s), &(c->x));
+        return true;
+    }
+	return false;
+}
+
+static qboolean G_entityvisibletoclient(edict_t *viewer, edict_t *ent)
+{
+	// do whatever 'global' filtering
+	// dimension_see ?
+
+    if (ent->isvisible)
+    {
+        return ent->isvisible(viewer, ent);
+    }
+
+	return true;
+}
+
+
+static void* G_FetchGameExtension(char *name)
+{
+	Com_Printf("Game: G_FetchGameExtension for %s\n", name);
+	Com_Printf("Game: Extension not found.\n");
+	return NULL;
 }
 
 /*
@@ -151,7 +190,7 @@ void InitGame(void)
     filterban = gi.cvar("filterban", "1", 0);
 
     g_select_empty = gi.cvar("g_select_empty", "0", CVAR_ARCHIVE);
-    g_protocol_extensions = gi.cvar("g_protocol_extensions", "0", CVAR_LATCH);
+    //g_protocol_extensions = gi.cvar("g_protocol_extensions", "0", CVAR_LATCH);
 
     run_pitch = gi.cvar("run_pitch", "0.002", 0);
     run_roll = gi.cvar("run_roll", "0.005", 0);
@@ -171,12 +210,34 @@ void InitGame(void)
     sv_features = gi.cvar("sv_features", NULL, 0);
 
     // enable protocol extensions if supported
-    if (sv_features && (int)sv_features->value & GMF_PROTOCOL_EXTENSIONS && (int)g_protocol_extensions->value) {
+    if (sv_features && (int)sv_features->value & GMF_PROTOCOL_EXTENSIONS && true/*(int)g_protocol_extensions->value*/) {
         features |= GMF_PROTOCOL_EXTENSIONS;
         game.csr = cs_remap_new;
     } else {
         game.csr = cs_remap_old;
     }
+
+    // setup framerate parameters
+	if ((int)sv_features->value & GMF_VARIABLE_FPS) {
+		int framediv;
+
+		cvar_t *cv = gi.cvar("sv_fps", NULL, 0);
+		if (!cv)
+			gi.error("GMF_VARIABLE_FPS exported but no 'sv_fps' cvar");
+
+		framediv = (int)cv->value / BASE_FRAMERATE;
+
+		clamp(framediv, 1, MAX_FRAMEDIV);
+
+		game.framerate = framediv * BASE_FRAMERATE;
+		game.frametime = BASE_FRAMETIME_1000 / framediv;
+		game.framediv = framediv;
+	}
+	else {
+		game.framerate = BASE_FRAMERATE;
+		game.frametime = BASE_FRAMETIME_1000;
+		game.framediv = 1;
+	}
 
     // export our own features
     gi.cvar_forceset("g_features", va("%d", features));
@@ -235,6 +296,21 @@ q_exported game_export_t *GetGameAPI(game_import_t *import)
     globals.edict_size = sizeof(edict_t);
 
     return &globals;
+}
+
+q_exported game_export_ex_t *GetGameAPIEx(game_import_ex_t *importx)
+{
+    gix = *importx;
+
+    globalsx.apiversion = GAME_API_VERSION_EX;
+    globalsx.structsize = sizeof(game_export_ex_t);
+
+    globalsx.GetExtension = G_FetchGameExtension;
+    globalsx.CustomizeEntityToClient = G_customizeentitytoclient;
+    globalsx.EntityVisibleToClient = G_entityvisibletoclient;
+
+
+	return &globalsx;
 }
 
 #ifndef GAME_HARD_LINKED
@@ -471,6 +547,8 @@ void G_RunFrame(void)
 {
     int     i;
     edict_t *ent;
+    detail_edict_t *det;
+	actor_t *actor;
 
     level.framenum++;
     level.time = level.framenum * FRAMETIME;
@@ -513,6 +591,22 @@ void G_RunFrame(void)
 
         G_RunEntity(ent);
     }
+
+    det = &detail_ents[0];
+	for (i = 0; i < MAX_DETAILS; i++, det++) {
+		if (!det->isused)
+			continue;
+
+		G_RunDetail(det);
+	}
+
+	actor = &actor_list[0];
+	for (i = 0; i < MAX_DETAILS; i++, actor++) {
+		if (!actor->inuse)
+			continue;
+
+		G_RunActor(actor);
+	}
 
     // exit intermission right now to avoid annoying fov change
     if (level.exitintermission) {

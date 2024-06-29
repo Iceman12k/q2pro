@@ -871,6 +871,47 @@ void ClientEndServerFrame(edict_t *ent)
         current_client->ps.pmove.velocity[i] = COORD2SHORT(ent->velocity[i]);
     }
 
+    // Reki (June 28 2024): detail entity stuff
+    // figure out visible chunks
+	{
+		int current_chunk = ORG_TO_CHUNK(ent->s.origin);
+		current_client->chunks_visible = 0ULL;
+		current_client->chunks_visible |= 1ULL << current_chunk;
+		current_client->chunks_visible |= (1ULL << current_chunk) << 1ULL;
+		current_client->chunks_visible |= (1ULL << current_chunk) >> 1ULL;
+		current_client->chunks_visible |= (1ULL << current_chunk) << 8ULL;
+		current_client->chunks_visible |= (1ULL << current_chunk) >> 8ULL;
+
+		// FIXME: Reki (February 10 2024): this is probably a really shit way to do this...
+		// brain is too fried to figure out a proper way tho
+		float ang = round(current_client->ps.viewangles[YAW] / 25) * 25;
+		float angs[] = {ang - 50, ang - 37.5, 
+					ang - 25, ang - 12.5,
+					ang, ang + 12.5, ang + 25,
+					ang + 37.5, ang + 50};
+		for(int i = 0; i < (sizeof(angs) / sizeof(angs[0])); i++)
+		{
+			vec3_t vorg;
+			vec3_t uvector;
+
+			uvector[0] = cos(DEG2RAD(angs[i]));
+			uvector[1] = sin(DEG2RAD(angs[i]));
+			uvector[2] = 0;
+
+			VectorMA(ent->s.origin, CHUNK_SIZE * 0.6, uvector, vorg);
+			current_client->chunks_visible |= 1ULL << ORG_TO_CHUNK(vorg);
+			VectorMA(ent->s.origin, CHUNK_SIZE * 0.9, uvector, vorg);
+			current_client->chunks_visible |= 1ULL << ORG_TO_CHUNK(vorg);
+			VectorMA(ent->s.origin, CHUNK_SIZE * 1.2, uvector, vorg);
+			current_client->chunks_visible |= 1ULL << ORG_TO_CHUNK(vorg);
+		}
+	}
+    // build detail entity scene
+    if (FRAMESYNC)
+	{
+		Scene_Generate(ent);
+	}
+
     //
     // If the end of unit layout is displayed, don't give
     // the player any normal movement attributes

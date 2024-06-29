@@ -890,3 +890,21 @@ void G_RunEntity(edict_t *ent)
         gi.error("SV_Physics: bad movetype %i", ent->movetype);
     }
 }
+
+void G_RunDetail(detail_edict_t *ent)
+{
+	if (ent->dphysics)
+	{
+		if (ent->dphysics(ent))
+			return;
+	}
+}
+
+void G_RunActor(actor_t *actor)
+{
+	if (actor->aphysics)
+	{
+		if (actor->aphysics(actor))
+			return;
+	}
+}

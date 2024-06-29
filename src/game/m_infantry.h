@@ -226,5 +226,21 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define FRAME_attak206          204
 #define FRAME_attak207          205
 #define FRAME_attak208          206
+// ...
+#define FRAME_attak301          217
+#define FRAME_attak302          218
+#define FRAME_attak303          219
+#define FRAME_attak304          220
+#define FRAME_attak305          221
+#define FRAME_attak306          222
+#define FRAME_attak307          223
+#define FRAME_attak308          224
+#define FRAME_attak309          225
+#define FRAME_attak310          226
+#define FRAME_attak311          227
+#define FRAME_attak312          228
+#define FRAME_attak313          229
+#define FRAME_attak314          230
+#define FRAME_attak315          231
 
 #define MODEL_SCALE     1.000000

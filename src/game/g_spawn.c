@@ -1035,6 +1035,10 @@ void SP_worldspawn(edict_t *ent)
 
     G_AddPrecache(worldspawn_precache);
 
+    // Reki (June 28 2024): Our initialization here
+    D_Initialize();
+    //
+
 //
 // Setup light animation tables. 'a' is total darkness, 'z' is doublebright.
 //

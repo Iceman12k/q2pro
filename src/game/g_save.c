@@ -56,10 +56,15 @@ typedef struct {
 #define O(name) OA(name, 1)
 #define FA(name, size) _FA(F_FLOAT, name, size)
 #define F(name) FA(name, 1)
+#define ULA(name, size) _FA(F_UINT64, name, size)
+#define UL(name) ULA(name, 1)
 #define L(name) _F(F_LSTRING, name)
 #define V(name) _F(F_VECTOR, name)
 #define T(name) _F(F_ITEM, name)
 #define E(name) _F(F_EDICT, name)
+#define ACT(name) _F(F_ACTOR, name)
+#define DETA(name, size) _FA(F_DETAIL, name, size)
+#define DET(name) DETA(name, 1)
 #define P(name, type) _FA(F_POINTER, name, type)
 
 static const save_field_t entityfields[] = {
@@ -254,6 +259,16 @@ static const save_field_t entityfields[] = {
     I(monsterinfo.power_armor_type),
     I(monsterinfo.power_armor_power),
 
+    // Reki (June 28 2024): Our save fields here
+
+    I(dmg_taken_shred),
+    I(dmg_taken_energy),
+    I(dmg_bleedout_frame),
+
+    P(predraw, P_predraw),
+    P(isvisible, P_isvisible),
+    ACT(actor),
+
     {0}
 #undef _OFS
 };
@@ -440,6 +455,56 @@ static const save_field_t gamefields[] = {
 #undef _OFS
 };
 
+static const save_field_t detailfields[] = {
+#define _OFS DETOFS
+    V(s.origin),
+    V(s.angles),
+    V(s.old_origin),
+    I(s.modelindex),
+    I(s.modelindex2),
+    I(s.modelindex3),
+    I(s.modelindex4),
+    I(s.frame),
+    I(s.skinnum),
+    I(s.effects),
+    I(s.renderfx),
+    I(s.solid),
+    I(s.sound),
+    I(s.event),
+
+    I(isused),
+    L(classname),
+    P(dphysics, P_dphysics),
+    P(dpredraw, P_dpredraw),
+    I(detailflags),
+    I(type),
+    F(angle),
+    V(movedir),
+    V(velocity),
+
+    {0}
+#undef _OFS
+};
+
+static const save_field_t actorfields[] = {
+#define _OFS ACTOFS
+    UL(chunks_visible),
+    V(origin),
+    V(mins),
+    V(maxs),
+    E(owner),
+    P(aevaluate, P_aevaluate),
+    P(aaddtoscene, P_aaddtoscene),
+    P(aphysics, P_aphysics),
+
+    DETA(details, ACTOR_MAX_DETAILS),
+
+    I(cnt),
+
+    {0}
+#undef _OFS
+};
+
 //=========================================================
 
 static void write_data(void *buf, size_t len, gzFile f)
@@ -457,6 +522,12 @@ static void write_short(gzFile f, int16_t v)
 }
 
 static void write_int(gzFile f, int32_t v)
+{
+    v = LittleLong(v);
+    write_data(&v, sizeof(v), f);
+}
+
+static void write_uint64(gzFile f, uint64_t v)
 {
     v = LittleLong(v);
     write_data(&v, sizeof(v), f);
@@ -532,7 +603,7 @@ static void write_pointer(gzFile f, void *p, ptr_type_t type)
     }
 
     gzclose(f);
-    gi.error("%s: unknown pointer: %p", __func__, p);
+    gi.error("%s: unknown pointer: (%i) %p", __func__, type, p);
 }
 
 static void write_field(gzFile f, const save_field_t *field, void *base)
@@ -578,6 +649,19 @@ static void write_field(gzFile f, const save_field_t *field, void *base)
     case F_EDICT:
         write_index(f, *(void **)p, sizeof(edict_t), g_edicts, game.maxentities - 1);
         break;
+    case F_ACTOR:
+        write_index(f, *(void **)p, sizeof(actor_t), actor_list, MAX_ACTORS - 1);
+        break;
+    case F_DETAIL:
+        for (i = 0; i < field->size; i++) {
+            write_index(f, ((detail_edict_t**)p)[i], sizeof(detail_edict_t), detail_ents, MAX_DETAILS - 1);
+        }
+        break;
+    case F_UINT64:
+        for (i = 0; i < field->size; i++) {
+            write_uint64(f, ((uint64_t *)p)[i]);
+        }
+        break;
     case F_CLIENT:
         write_index(f, *(void **)p, sizeof(gclient_t), game.clients, game.maxclients - 1);
         break;
@@ -598,7 +682,8 @@ static void write_fields(gzFile f, const save_field_t *fields, void *base)
 {
     const save_field_t *field;
 
-    for (field = fields; field->type; field++) {
+    int i = 0;
+    for (field = fields; field->type; field++, i++) {
         write_field(f, field, base);
     }
 }
@@ -627,6 +712,16 @@ static int read_int(gzFile f)
 
     read_data(&v, sizeof(v), f);
     v = LittleLong(v);
+
+    return v;
+}
+
+static int read_uint64(gzFile f)
+{
+    uint64_t v;
+
+    read_data(&v, sizeof(v), f);
+    v = LittleLongLong(v);
 
     return v;
 }
@@ -696,7 +791,7 @@ static void *read_index(gzFile f, size_t size, const void *start, int max_index)
 
     if (index < 0 || index > max_index) {
         gzclose(f);
-        gi.error("%s: bad index", __func__);
+        gi.error("%s: bad index %i", __func__, index);
     }
 
     p = (byte *)start + index * size;
@@ -770,6 +865,19 @@ static void read_field(gzFile f, const save_field_t *field, void *base)
     case F_EDICT:
         *(edict_t **)p = read_index(f, sizeof(edict_t), g_edicts, game.maxentities - 1);
         break;
+    case F_ACTOR:
+        *(actor_t **)p = read_index(f, sizeof(actor_t), actor_list, MAX_ACTORS - 1);
+        break;
+    case F_DETAIL:
+        for (i = 0; i < field->size; i++) {
+            ((detail_edict_t**)p)[i] = read_index(f, sizeof(detail_edict_t), detail_ents, MAX_DETAILS - 1);
+        }
+        break;
+    case F_UINT64:
+        for (i = 0; i < field->size; i++) {
+            ((uint64_t *)p)[i] = read_uint64(f);
+        }
+        break;
     case F_CLIENT:
         *(gclient_t **)p = read_index(f, sizeof(gclient_t), game.clients, game.maxclients - 1);
         break;
@@ -799,7 +907,7 @@ static void read_fields(gzFile f, const save_field_t *fields, void *base)
 
 #define SAVE_MAGIC1     MakeLittleLong('S','S','V','1')
 #define SAVE_MAGIC2     MakeLittleLong('S','A','V','1')
-#define SAVE_VERSION    8
+#define SAVE_VERSION    9
 
 static void check_gzip(int magic)
 {
@@ -912,6 +1020,8 @@ void WriteLevel(const char *filename)
 {
     int     i;
     edict_t *ent;
+    actor_t *actor;
+    detail_edict_t *det;
     gzFile  f;
 
     f = gzopen(filename, "wb");
@@ -931,6 +1041,26 @@ void WriteLevel(const char *filename)
             continue;
         write_int(f, i);
         write_fields(f, entityfields, ent);
+    }
+    write_int(f, -1);
+
+    // write out all the actors
+    for (i = 0; i < MAX_ACTORS; i++) {
+        actor = &actor_list[i];
+        if (!actor->inuse)
+            continue;
+        write_int(f, i);
+        write_fields(f, actorfields, actor);
+    }
+    write_int(f, -1);
+
+    // write out all the details
+    for (i = 0; i < MAX_DETAILS; i++) {
+        det = &detail_ents[i];
+        if (!det->isused)
+            continue;
+        write_int(f, i);
+        write_fields(f, detailfields, det);
     }
     write_int(f, -1);
 
@@ -960,6 +1090,8 @@ void ReadLevel(const char *filename)
     gzFile  f;
     int     i;
     edict_t *ent;
+    actor_t *actor;
+    detail_edict_t *det;
 
     // free any dynamic memory allocated by loading the level
     // base state
@@ -1011,6 +1143,36 @@ void ReadLevel(const char *filename)
         // let the server rebuild world links for this ent
         memset(&ent->area, 0, sizeof(ent->area));
         gi.linkentity(ent);
+    }
+
+    // load all the actors
+    while (1) {
+        entnum = read_int(f);
+        if (entnum == -1)
+            break;
+        if (entnum < 0 || entnum >= MAX_ACTORS) {
+            gzclose(f);
+            gi.error("%s: bad actor number", __func__);
+        }
+
+        actor = &actor_list[entnum];
+        read_fields(f, actorfields, actor);
+        actor->inuse = true;
+    }
+
+    // load all the details
+    while (1) {
+        entnum = read_int(f);
+        if (entnum == -1)
+            break;
+        if (entnum < 0 || entnum >= MAX_DETAILS) {
+            gzclose(f);
+            gi.error("%s: bad detail number", __func__);
+        }
+
+        det = &detail_ents[entnum];
+        read_fields(f, detailfields, det);
+        det->isused = true;
     }
 
     gzclose(f);

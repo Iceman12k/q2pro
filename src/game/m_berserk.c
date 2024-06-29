@@ -208,7 +208,7 @@ void berserk_attack_spike(edict_t *self)
 {
     vec3_t  aim = { MELEE_DISTANCE, 0, -24 };
 
-    fire_hit(self, aim, (15 + (Q_rand() % 6)), 400);    //  Faster attack -- upwards and backwards
+    fire_hit(self, aim, (14 + (Q_rand() % 6)), 400);    //  Faster attack -- upwards and backwards
 }
 
 void berserk_swing(edict_t *self)
@@ -231,7 +231,7 @@ void berserk_attack_club(edict_t *self)
 {
     vec3_t  aim = { MELEE_DISTANCE, self->mins[0], -4 };
 
-    fire_hit(self, aim, (5 + (Q_rand() % 6)), 400);     // Slower attack
+    fire_hit(self, aim, (8 + (Q_rand() % 6)), 400);     // Slower attack
 }
 
 static const mframe_t berserk_frames_attack_club[] = {
@@ -394,6 +394,7 @@ static const mframe_t berserk_frames_pain_r_armblow[] = {
 };
 const mmove_t berserk_move_pain_r_armblow = {FRAME_pain_r_armblowoff1, FRAME_pain_r_armblowoff6, berserk_frames_pain_r_armblow, berserk_run};
 
+static actor_t* berserk_actor_spawn(edict_t *self);
 void berserk_pain(edict_t *self, edict_t *other, float kick, int damage)
 {
     if (self->health < (self->max_health / 2))
@@ -416,6 +417,7 @@ void berserk_pain(edict_t *self, edict_t *other, float kick, int damage)
             {
                 self->monsterinfo.currentmove = &berserk_move_pain2;
             }
+            berserk_actor_spawn(self);
             return;
         }
     }
@@ -520,6 +522,106 @@ static void berserk_precache(void)
     sound_punch  = gi.soundindex("berserk/attack.wav");
     sound_search = gi.soundindex("berserk/bersrch1.wav");
     sound_sight  = gi.soundindex("berserk/sight.wav");
+
+    model_normal = gi.modelindex("models/monsters/berserk/normal.md2");
+    model_wounded_noarm_r = gi.modelindex("models/monsters/berserk/wounded_1.md2");
+}
+
+#define BERSERK_MAX_DRIPS 4
+#define BERSERK_ACTOR_DRIP_START 0
+int berserk_actor_physics(actor_t *actor)
+{
+    edict_t *self = actor->owner;
+    
+    // dead berserkers don't need to drip
+    if (self->health < 0)
+    {
+        Actor_Free(actor);
+        self->actor = NULL;
+    }
+
+    // spawn a new drip?
+    if (FRAMESYNC)
+    {
+        if (random() < 0.1 && self->monsterinfo.currentmove == &berserk_move_run2)
+        {
+            actor->cnt++;
+            actor->cnt %= BERSERK_MAX_DRIPS;
+
+            detail_edict_t *drip = actor->details[BERSERK_ACTOR_DRIP_START + actor->cnt];
+            drip->type = 1;
+            
+            vec3_t fwd, right;
+            AngleVectors(self->s.angles, fwd, right, NULL);
+            VectorCopy(self->s.origin, drip->s.origin);
+            drip->s.origin[2] += 26;
+            VectorMA(drip->s.origin, 10, right, drip->s.origin);
+            VectorCopy(drip->s.origin, drip->s.old_origin);
+            VectorClear(drip->velocity);
+            VectorMA(vec3_origin, 8 + (random() * 32), right, drip->velocity);
+        }
+    }
+    
+
+    for(int i = 0; i < BERSERK_MAX_DRIPS; i++)
+    {
+        detail_edict_t *drip = actor->details[BERSERK_ACTOR_DRIP_START + i];
+        if (!drip->type)
+            continue;
+        
+        vec3_t end;
+        trace_t trace;
+        drip->velocity[2] -= sv_gravity->value * FRAMETIME * 0.25;
+        VectorMA(drip->s.origin, FRAMETIME, drip->velocity, end);
+        trace = gi.trace(drip->s.origin, vec3_origin, vec3_origin, end, world, MASK_SOLID);
+        VectorCopy(trace.endpos, drip->s.origin);
+
+        if (trace.fraction < 0.1)
+            drip->type = 0;
+    }
+
+    // relink for culling
+    VectorCopy(self->s.origin, actor->origin);
+    Actor_Link(actor, 256);
+}
+
+int berserk_actor_addtoscene(actor_t *actor, int score)
+{
+    for(int i = 0; i < BERSERK_MAX_DRIPS; i++)
+    {
+        detail_edict_t *drip = actor->details[BERSERK_ACTOR_DRIP_START + i];
+        if (drip == NULL) // no drip, whoops!
+            break;
+        
+        if (!drip->type)
+            continue;
+        
+        Actor_AddDetail(actor, drip);
+    }
+
+    return true;
+}
+
+static actor_t* berserk_actor_spawn(edict_t *self)
+{
+    // spawn our actor for drippage
+    if (self->actor)
+        return;
+
+    actor_t *a = Actor_Spawn();
+    self->actor = a;
+    a->owner = self;
+    a->aphysics = berserk_actor_physics;
+    a->aaddtoscene = berserk_actor_addtoscene;
+
+    for(int i = 0; i < BERSERK_MAX_DRIPS; i++)
+    {
+        detail_edict_t *drip = D_Spawn();
+        a->details[BERSERK_ACTOR_DRIP_START + i] = drip;
+        drip->s.modelindex = null_model;
+        drip->s.effects = EF_GIB;
+        drip->type = 0;
+    }
 }
 
 /*QUAKED monster_berserk (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
@@ -533,8 +635,6 @@ void SP_monster_berserk(edict_t *self)
 
     // pre-caches
     G_AddPrecache(berserk_precache);
-    model_normal = gi.modelindex("models/monsters/berserk/normal.md2");
-    model_wounded_noarm_r = gi.modelindex("models/monsters/berserk/wounded_1.md2");
     self->s.modelindex = model_normal;
     VectorSet(self->mins, -16, -16, -24);
     VectorSet(self->maxs, 16, 16, 32);

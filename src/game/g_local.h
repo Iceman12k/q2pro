@@ -33,6 +33,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // the "gameversion" client command will print this plus compile date
 #define GAMEVERSION "br2"
 
+
 // protocol bytes that can be directly added to messages
 #define svc_muzzleflash     1
 #define svc_muzzleflash2    2
@@ -70,8 +71,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define FL_NO_KNOCKBACK         BIT(11)
 #define FL_POWER_ARMOR          BIT(12)     // power armor (if any) is active
 #define FL_RESPAWN              BIT(31)     // used for item respawning
-
-#define FRAMETIME       0.1f
 
 // memory tags to allow dynamic memory to be cleaned up
 #define TAG_GAME    765     // clear when unloading the dll
@@ -219,6 +218,56 @@ typedef struct {
 #define WEAP_RAILGUN            10
 #define WEAP_BFG                11
 
+// Reki (June 28 2024): our stuff here
+typedef struct detail_edict_s detail_edict_t;
+typedef struct detail_list_s detail_list_t;
+typedef detail_edict_t detail_edict_s;
+typedef detail_list_t detail_list_s;
+
+struct detail_edict_s {
+    // detail entity (non collision, but still just as important!) we allocate
+    // these separately, and have a render queue that sends the closest ones
+    // to each client, effectively giving us infinite ents with added LOD
+    entity_state_t s;
+    qboolean isused;
+
+    // class
+    char *classname;
+    edict_t *owner;
+    int     (*dpredraw)(edict_t *v, detail_edict_t *e, entity_state_t *s, entity_state_extension_t *x);
+    int     (*dphysics)(detail_edict_t *e);
+
+    // used for mapping to a real edict
+    qboolean is_new[MAX_CLIENTS];
+    uint8_t mapped_to[MAX_CLIENTS];
+    int	valid;
+    int	mapped;
+    //vec3_t old_origin[MAX_CLIENTS];
+
+    // for LOD options
+    short detailflags;
+
+    //// for md3 models
+    //md3anim_t md3anim;
+
+    // begin fields
+    int type;
+    float angle;
+    vec3_t movedir;
+    vec3_t velocity;
+};
+
+struct detail_list_s {
+    detail_edict_t *e; // actual detail edict we're rendering
+    int				score; // score for priority queue sorting
+    detail_list_t *next;
+    detail_list_t *next_list;
+};
+
+extern detail_edict_t detail_ents[];
+#include "detail.h"
+//
+
 typedef struct gitem_s {
     char        *classname; // spawning name
     bool        (*pickup)(struct edict_s *ent, struct edict_s *other);
@@ -284,6 +333,11 @@ typedef struct {
     cs_remap_t  csr;
 
     precache_t  *precaches;
+
+    // variable fps
+    int			framerate;
+    float		frametime;
+    int			framediv;
 } game_locals_t;
 
 //
@@ -435,6 +489,8 @@ extern  game_locals_t   game;
 extern  level_locals_t  level;
 extern  game_import_t   gi;
 extern  game_export_t   globals;
+extern  game_import_ex_t gix;
+extern  game_export_ex_t globalsx;
 extern  spawn_temp_t    st;
 
 extern  int sm_meat_index;
@@ -489,6 +545,8 @@ extern  edict_t         *g_edicts;
 #define LLOFS(x) q_offsetof(level_locals_t, x)
 #define GLOFS(x) q_offsetof(game_locals_t, x)
 #define CLOFS(x) q_offsetof(gclient_t, x)
+#define ACTOFS(x) q_offsetof(actor_t, x)
+#define DETOFS(x) q_offsetof(detail_edict_t, x)
 
 #define random()    frand()
 #define crandom()   crand()
@@ -565,10 +623,46 @@ typedef enum {
     F_CLIENT,           // index on disk, pointer in memory
     F_FUNCTION,
     F_POINTER,
+    F_ACTOR,            // index on disk, pointer in memory
+    F_DETAIL,           // index on disk, pointer in memory
+    F_UINT64,
     F_IGNORE
 } fieldtype_t;
 
 extern const gitem_t    itemlist[];
+
+// variable server FPS
+#ifndef NO_FPS
+#define HZ              game.framerate
+#define FRAMETIME       game.frametime
+#define FRAMEDIV        game.framediv
+#define FRAMESYNC       !(level.framenum % game.framediv)
+#else
+#define HZ              BASE_FRAMERATE
+#define FRAMETIME       BASE_FRAMETIME_1000
+#define FRAMEDIV        1
+#define FRAMESYNC       1
+#endif
+
+#define KEYFRAME(x)   (level.framenum + (x) - (level.framenum % FRAMEDIV))
+
+#define NEXT_FRAME(ent, func) \
+    ((ent)->think = (func), (ent)->nextthink = level.framenum + 1)
+
+#define NEXT_KEYFRAME(ent, func) \
+    ((ent)->think = (func), (ent)->nextthink = KEYFRAME(FRAMEDIV))
+
+
+#define clamp(a,b,c)    ((a)<(b)?(a)=(b):(a)>(c)?(a)=(c):(a))
+#define cclamp(a,b,c)   ((b)>(c)?clamp(a,c,b):clamp(a,b,c))
+
+#ifndef max
+#define max(a,b) ((a)>(b)?(a):(b))
+#endif
+
+#ifndef min
+#define min(a,b) ((a)<(b)?(a):(b))
+#endif
 
 //
 // g_cmds.c
@@ -794,6 +888,20 @@ void GetChaseTarget(edict_t *ent);
 void G_AddPrecache(void (*func)(void));
 void G_RefreshPrecaches(void);
 
+//
+// e_detail.c
+//
+extern int null_model;
+void D_Initialize(void);
+detail_edict_t* D_Spawn(void);
+void D_Free(detail_edict_t *detail);
+void Scene_Generate(edict_t *viewer);
+actor_t *Actor_Spawn(void);
+void Actor_Free(actor_t *actor);
+void Actor_Cleanup(actor_t *actor);
+void Actor_Link(actor_t *actor, int size);
+int Actor_AddDetail(actor_t *actor, detail_edict_t *detail);
+
 //============================================================================
 
 // client_t->anim_priority
@@ -937,6 +1045,13 @@ struct gclient_s {
 
     edict_t     *chase_target;      // player we are chasing
     bool        update_chase;       // need to update chase info?
+
+    // Reki (June 28 2024): Our stuff below here
+    // detail ents
+    detail_list_t *detail_bucket[DETAIL_BUCKETS];
+    uint64_t chunks_visible;
+    detailusagefield_t detail_sent_to_client;
+    detailedictfield_t detail_edict_in_use;
 };
 
 struct edict_s {
@@ -1047,9 +1162,6 @@ struct edict_s {
     float       dmg_radius;
     int         sounds;         // make this a spawntemp var?
     int         count;
-    int         dmg_taken_shred;
-    int         dmg_taken_energy;
-    int         dmg_bleedout_frame;
 
     edict_t     *chain;
     edict_t     *enemy;
@@ -1091,4 +1203,14 @@ struct edict_s {
     // common data blocks
     moveinfo_t      moveinfo;
     monsterinfo_t   monsterinfo;
+
+    // Reki (June 28 2024): our stuff here
+    int     (*predraw)(edict_t *v, edict_t *e, entity_state_t *s, entity_state_extension_t *x);
+    int     (*isvisible)(edict_t *v, edict_t *e);
+    actor_t *actor;
+
+    int         dmg_taken_shred;
+    int         dmg_taken_energy;
+    int         dmg_bleedout_frame;
+    //
 };

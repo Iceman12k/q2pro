@@ -154,6 +154,7 @@ game_src = [
   'src/game/p_trail.c',
   'src/game/p_view.c',
   'src/game/p_weapon.c',
+  'src/game/e_detail.c',
   'src/shared/m_flash.c',
   'src/shared/shared.c',
 ]
