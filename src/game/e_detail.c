@@ -411,7 +411,7 @@ void Scene_Generate(edict_t *viewer)
 							continue;
 						
 						size_t inverted = ~slots_in_use;
-						int free_bit = __builtin_ctzl(inverted);
+						int free_bit = slots_in_use == 0 ? 0 : __builtin_ctzl(inverted);
 						redict_index = free_bit + (BITS_PER_NUM * j);
 						scene_redictused[j] |= ((size_t)1 << free_bit);
 						break;
