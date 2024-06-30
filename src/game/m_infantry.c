@@ -592,7 +592,7 @@ void InfantryPlasmaGun(edict_t *self)
         G_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
 
         if (self->enemy) {
-            VectorMA(self->enemy->s.origin, 0.15f, self->enemy->velocity, target);
+            VectorMA(self->enemy->s.origin, 0.05f, self->enemy->velocity, target);
             target[2] += self->enemy->viewheight;
             VectorSubtract(target, start, forward);
             VectorNormalize(forward);
