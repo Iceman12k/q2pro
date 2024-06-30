@@ -391,6 +391,7 @@ void plasma_touch(actor_t *actor, edict_t *other, cplane_t *plane, csurface_t *s
         gi.multicast(bolt->s.origin, MULTICAST_PVS);
     }
 
+    bolt->s.modelindex = 0;
     Actor_Cleanup(actor);
 }
 

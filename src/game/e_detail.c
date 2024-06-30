@@ -45,14 +45,15 @@ int D_Predraw(edict_t *v, edict_t *ref, entity_state_t *s, entity_state_extensio
 
 	if (entry->is_new[clientnum])
 	{
-		s->event = EV_OTHER_TELEPORT;
+		//s->renderfx |= RF_FRAMELERP;
+		//s->event = EV_OTHER_TELEPORT;
 		entry->is_new[clientnum] = false;
 	}
 
 	// save our current origin out for next time
 	//VectorCopy(s->origin, entry->old_origin[clientnum]);
 	//VectorCopy(s->origin, s->old_origin);
-	VectorCopy(s->origin, s->old_origin);
+	//VectorCopy(s->origin, s->old_origin);
 	//
 
 	s->number = hold_num;
@@ -403,17 +404,20 @@ void Scene_Generate(edict_t *viewer)
 					int redict_index = 0;
 					for(int j = 0; j < DETAIL_EDICT_BOARDS; j++)
 					{
-						if (~scene_redictused[j] == 0) // all are used here...
+						// we don't want to reuse ents from last frame, this could cause weird lerping
+						bitfield_t slots_in_use = scene_redictused[j] | viewer_edict->client->detail_sent_to_client[j];
+
+						if (~slots_in_use == 0) // all are used here...
 							continue;
 						
-						size_t inverted = ~scene_redictused[j];
+						size_t inverted = ~slots_in_use;
 						int free_bit = __builtin_ctzl(inverted);
 						redict_index = free_bit + (BITS_PER_NUM * j);
 						scene_redictused[j] |= ((size_t)1 << free_bit);
 						break;
 					}
 
-					VectorCopy(detail->s.origin, detail->s.old_origin);
+					//VectorCopy(detail->s.origin, detail->s.old_origin);
 					detail_map[viewer_clientnum][redict_index] = detail;
 					detail->mapped_to[viewer_clientnum] = redict_index;
 					detail->is_new[viewer_clientnum] = true;

@@ -273,6 +273,7 @@ extern int D_IsVisible(edict_t *, edict_t *);
 extern int D_Predraw(edict_t *, edict_t *, entity_state_t *, entity_state_extension_t *);
 extern int plasma_aphysics(actor_t *);
 extern void actor_attack(edict_t *);
+extern void Actor_Cleanup(actor_t *);
 extern void actor_die(edict_t *, edict_t *, edict_t *, int, vec3_t);
 extern void actor_pain(edict_t *, edict_t *, float, int);
 extern void actor_run(edict_t *);
@@ -1234,5 +1235,6 @@ const save_ptr_t save_ptrs[] = {
 { P_aphysics, berserk_actor_physics },
 { P_aphysics, plasma_aphysics },
 { P_aaddtoscene, berserk_actor_addtoscene },
+{ P_athink, Actor_Cleanup },
 };
 const int num_save_ptrs = sizeof(save_ptrs) / sizeof(save_ptrs[0]);

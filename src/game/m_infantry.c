@@ -619,7 +619,7 @@ void InfantryPlasmaGun(edict_t *self)
     forward[1] += crandom() * 0.03;
     forward[2] += random() * 0.04;
     gi.sound(self, CHAN_ITEM, sound_plasmashot, 1, ATTN_NORM, 0);
-    fire_plasma(self, start, forward, 8, 700, EF_BLUEHYPERBLASTER | EF_GRENADE, -1);
+    fire_plasma(self, start, forward, 8, 700, EF_BLUEHYPERBLASTER | EF_GRENADE, 0);
 }
 
 void infantry_energy_fire(edict_t *self)

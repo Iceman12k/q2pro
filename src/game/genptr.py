@@ -25,11 +25,12 @@ pointers = {
     'monsterinfo_checkattack'   : 'bool {p}(edict_t *)',
     'isvisible'                 : 'int {p}(edict_t *, edict_t *)',
     'predraw'                   : 'int {p}(edict_t *, edict_t *, entity_state_t *, entity_state_extension_t *)',
-    'dpredraw'            : 'int {p}(edict_t *, detail_edict_t *, entity_state_t *, entity_state_extension_t *)',
-    'dphysics'            : 'int {p}(detail_edict_t *)',
-    'aphysics'             : 'int {p}(actor_t *)',
-    'aevaluate'            : 'void {p}(actor_t *, int)',
-    'aaddtoscene'          : 'int {p}(actor_t *, int)',
+    'dpredraw'                  : 'int {p}(edict_t *, detail_edict_t *, entity_state_t *, entity_state_extension_t *)',
+    'dphysics'                  : 'int {p}(detail_edict_t *)',
+    'aphysics'                  : 'int {p}(actor_t *)',
+    'aevaluate'                 : 'void {p}(actor_t *, int)',
+    'aaddtoscene'               : 'int {p}(actor_t *, int)',
+    'athink'                    : 'void {p}(actor_t *)',
 }
 
 if __name__ == "__main__":

@@ -893,6 +893,8 @@ void G_RunEntity(edict_t *ent)
 
 void G_RunDetail(detail_edict_t *ent)
 {
+    VectorCopy(ent->s.origin, ent->s.old_origin);
+    
 	if (ent->dphysics)
 	{
 		if (ent->dphysics(ent))
