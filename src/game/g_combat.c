@@ -458,12 +458,13 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
 
         // Energy does less damage to corpses
         if (targ->health <= 0)
-            take = ceil((float)take * 0.1);
+            take *= 0.09;
     }
     else
     {
         targ->dmg_taken_shred += take;
     }
+    //
 
 // do the damage
     if (take) {
@@ -475,6 +476,28 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
         targ->health = targ->health - take;
 
         if (targ->health <= 0) {
+            if (targ->svflags & SVF_MONSTER)
+            {
+                // flinch when dead
+                if (targ->health > targ->gib_health)
+                {
+                    if (targ->monsterinfo.currentmove)
+                    {
+                        if (targ->s.frame == targ->monsterinfo.currentmove->lastframe)
+                        {
+                            targ->think = monster_think;
+                            targ->nextthink = level.framenum + 1;
+                            targ->s.frame -= 1 + roundf(random() * 2);
+                            if (targ->groundentity)
+                                targ->s.angles[YAW] += (random() > 0.5) ? 5.5 : -5.5;
+                            targ->velocity[2] += 80;
+                            targ->groundentity = NULL;
+                        }
+                    }
+                }
+                //
+            }
+
             if ((targ->svflags & SVF_MONSTER) || (client))
                 targ->flags |= FL_NO_KNOCKBACK;
             Killed(targ, inflictor, attacker, take, point);
