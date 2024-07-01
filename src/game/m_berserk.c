@@ -34,6 +34,7 @@ static int sound_sight;
 static int sound_search;
 static int model_wounded_noarm_r;
 static int model_normal;
+static int model_arm;
 
 void berserk_sight(edict_t *self, edict_t *other)
 {
@@ -153,7 +154,7 @@ static const mframe_t berserk_frames_run1[] = {
 static const mframe_t berserk_frames_run1[] = {
     { ai_run, 26, NULL },
     { ai_run, 16, NULL },
-    { ai_run, 26, NULL },
+    { ai_charge, 26, NULL },
     { ai_run, 30, NULL },
     { ai_run, 23, NULL },
     { ai_run, 24, NULL }
@@ -217,9 +218,9 @@ void berserk_swing(edict_t *self)
 }
 
 static const mframe_t berserk_frames_attack_spike[] = {
-    { ai_charge, 0, NULL },
-    { ai_charge, 0, berserk_swing },
-    { ai_charge, 0, berserk_attack_spike },
+    { ai_charge, 15, NULL },
+    { ai_charge, 13, berserk_swing },
+    { ai_charge, 7, berserk_attack_spike },
     { ai_charge, 0, NULL },
     { ai_charge, 0, NULL },
     { ai_charge, 0, NULL },
@@ -235,10 +236,10 @@ void berserk_attack_club(edict_t *self)
 }
 
 static const mframe_t berserk_frames_attack_club[] = {
-    { ai_charge, 0, berserk_swing },
-    { ai_charge, 0, NULL },
-    { ai_charge, 0, NULL },
-    { ai_charge, 0, NULL },
+    { ai_charge, 22, berserk_swing },
+    { ai_charge, 11, NULL },
+    { ai_charge, 6, NULL },
+    { ai_charge, 2, NULL },
     { ai_charge, 0, berserk_attack_club },
     { ai_charge, 0, NULL },
     { ai_charge, 0, NULL },
@@ -247,21 +248,38 @@ static const mframe_t berserk_frames_attack_club[] = {
 };
 const mmove_t berserk_move_attack_club = {FRAME_att_c12, FRAME_att_c20, berserk_frames_attack_club, berserk_run};
 
+void berserk_check_run_swing(edict_t *self)
+{
+    if (!FacingIdeal(self))
+        return;
+    
+    if (!self->enemy)
+        return;
+    
+    vec3_t enemydist_v;
+    VectorSubtract(self->s.origin, self->enemy->s.origin, enemydist_v);
+    float enemydist = VectorLength(enemydist_v);
+    if (enemydist > (MELEE_DISTANCE * 1.5))
+        return;
+
+    self->s.frame = FRAME_r_attb12;
+}
+
 static const mframe_t berserk_frames_attack_club_run[] = {
     { ai_charge, 32, NULL },
     { ai_charge, 22, NULL },
     { ai_charge, 32, NULL },
     { ai_charge, 36, NULL },
+    { ai_move, 29, NULL },
+    { ai_move, 30, berserk_check_run_swing },
+    { ai_move, 32, NULL },
+    { ai_charge, 22, berserk_check_run_swing},
+    { ai_charge, 32, NULL },
+    { ai_charge, 36, berserk_check_run_swing },
     { ai_charge, 29, NULL },
-    { ai_charge, 30, NULL },
+    { ai_charge, 30, berserk_check_run_swing },
     { ai_charge, 32, NULL },
-    { ai_charge, 22, NULL},
-    { ai_charge, 32, NULL },
-    { ai_charge, 36, NULL },
-    { ai_charge, 29, NULL },
-    { ai_charge, 30, NULL },
-    { ai_charge, 32, NULL },
-    { ai_move, 22, berserk_swing },
+    { ai_charge, 22, berserk_swing },
     { ai_move, 32, NULL },
     { ai_move, 36, berserk_attack_club },
     { ai_move, 29, NULL },
@@ -302,10 +320,10 @@ void berserk_melee(edict_t *self)
     }
     else
     {
-        if ((Q_rand() % 2) == 0)
-            self->monsterinfo.currentmove = &berserk_move_attack_spike;
-        else
+        if ((Q_rand() % 3) == 0)
             self->monsterinfo.currentmove = &berserk_move_attack_club;
+        else
+            self->monsterinfo.currentmove = &berserk_move_attack_spike;
     }
 }
 
@@ -326,6 +344,11 @@ void berserk_overhead_melee(edict_t *self)
     if (enemydist < (MELEE_DISTANCE * 2))
         return;
     if (enemydist > (MELEE_DISTANCE * 4))
+        return;
+    if (fabsf(enemydist_v[2]) > 64)
+        return;
+
+    if (Q_rand() % 4 == 0)
         return;
 
     self->monsterinfo.currentmove = &berserk_move_attack_club_run;
@@ -394,9 +417,25 @@ static const mframe_t berserk_frames_pain_r_armblow[] = {
 };
 const mmove_t berserk_move_pain_r_armblow = {FRAME_pain_r_armblowoff1, FRAME_pain_r_armblowoff6, berserk_frames_pain_r_armblow, berserk_run};
 
+void arm_think(edict_t *arm)
+{
+    if (!KEYFRAME(level.framenum))
+        return;
+
+    arm->s.frame++;
+    if (arm->s.frame > 9)
+        arm->s.frame = 9;
+    
+    arm->think = arm_think;
+    arm->nextthink = level.framenum + 1;
+}
+
 static actor_t* berserk_actor_spawn(edict_t *self);
 void berserk_pain(edict_t *self, edict_t *other, float kick, int damage)
 {
+    if (self->health < 0)
+        return;
+
     if (self->health < (self->max_health / 2))
         self->s.skinnum = 1;
 
@@ -408,6 +447,25 @@ void berserk_pain(edict_t *self, edict_t *other, float kick, int damage)
             self->health = self->max_health;
             self->s.skinnum = 0;
             self->s.modelindex = model_wounded_noarm_r;
+
+            vec3_t right;
+            AngleVectors(self->s.angles, NULL, right, NULL);
+            edict_t *arm = G_Spawn();
+            arm->movetype = MOVETYPE_TOSS;
+            VectorCopy(self->s.angles, arm->s.angles);
+            VectorCopy(self->s.origin, arm->s.origin);
+            VectorMA(arm->s.origin, 10, right, arm->s.origin);
+            arm->s.origin[2] += 26;
+            arm->s.modelindex = model_arm;
+            VectorScale(right, 30 + random() * 45, arm->velocity);
+            arm->velocity[2] += 50;
+            VectorSet(arm->mins, -8, -8, -4);
+            VectorSet(arm->maxs, 8, 8, 4);
+            arm->avelocity[YAW] = (80 + (random() * 65)) * (rand() % 2 == 0 ? -1 : 1);
+            //arm->s.frame = 10;
+            arm->s.effects = EF_GIB;
+            arm->think = arm_think;
+            arm->nextthink = level.framenum + 1;
 
             if (self->monsterinfo.currentmove == &berserk_move_run1 || self->monsterinfo.currentmove == &berserk_move_run2 || self->monsterinfo.currentmove == &berserk_move_attack_club_run)
             {
@@ -525,6 +583,7 @@ static void berserk_precache(void)
 
     model_normal = gi.modelindex("models/monsters/berserk/normal.md2");
     model_wounded_noarm_r = gi.modelindex("models/monsters/berserk/wounded_1.md2");
+    model_arm = gi.modelindex("models/monsters/berserk/arm.md2");
 }
 
 #define BERSERK_MAX_DRIPS 4
@@ -534,10 +593,11 @@ int berserk_actor_physics(actor_t *actor)
     edict_t *self = actor->owner;
     
     // dead berserkers don't need to drip
-    if (self->health < 0)
+    if (self->health <= 0)
     {
         Actor_Free(actor);
         self->actor = NULL;
+        return;
     }
 
     // spawn a new drip?
@@ -643,7 +703,9 @@ void SP_monster_berserk(edict_t *self)
 
     self->health = 220;
     self->gib_health = -90;
-    self->mass = 250;
+    self->mass = 350;
+
+    self->yaw_speed = 30;
 
     self->pain = berserk_pain;
     self->die = berserk_die;

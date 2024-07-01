@@ -624,13 +624,16 @@ void InfantryPlasmaGun(edict_t *self)
 
 void infantry_energy_fire(edict_t *self)
 {
+    if (self->s.frame == FRAME_attak311)
+        InfantryPlasmaGun(self);
+
     if (level.framenum >= self->monsterinfo.pause_framenum)
         self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
     else
+    {
         self->monsterinfo.aiflags |= AI_HOLD_FRAME;
-
-    if (level.framenum % 2 == 0)
-        InfantryPlasmaGun(self);
+        self->s.frame = (self->s.frame == FRAME_attak311) ? FRAME_attak310 : FRAME_attak311;
+    }
 }
 
 void infantry_energy_cock_gun(edict_t *self)
@@ -652,7 +655,7 @@ static const mframe_t infantry_energy_frames_attack1[] = {
     { ai_charge, 1,  NULL },
     { ai_charge, 2,  NULL },
     { ai_charge, -2, NULL },
-    { ai_charge, -3, NULL },
+    { ai_charge, -3, infantry_energy_fire },
     { ai_charge, 1,  infantry_energy_fire },
     { ai_charge, 5,  NULL },
     { ai_charge, -1, NULL },
