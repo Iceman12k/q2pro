@@ -21,6 +21,7 @@ bool        Pickup_Weapon(edict_t *ent, edict_t *other);
 void        Use_Weapon(edict_t *ent, const gitem_t *inv);
 void        Drop_Weapon(edict_t *ent, const gitem_t *inv);
 
+void Weapon_Empty(edict_t *ent);
 void Weapon_Blaster(edict_t *ent);
 void Weapon_Shotgun(edict_t *ent);
 void Weapon_SuperShotgun(edict_t *ent);
@@ -32,6 +33,7 @@ void Weapon_Grenade(edict_t *ent);
 void Weapon_GrenadeLauncher(edict_t *ent);
 void Weapon_Railgun(edict_t *ent);
 void Weapon_BFG(edict_t *ent);
+void Weapon_PlasmaGun(edict_t *ent);
 
 static const gitem_armor_t jacketarmor_info = { 25,  50, .30f, .00f, ARMOR_JACKET};
 static const gitem_armor_t combatarmor_info = { 50, 100, .60f, .30f, ARMOR_COMBAT};
@@ -1155,18 +1157,36 @@ const gitem_t itemlist[] = {
     // WEAPONS
     //
 
+    {
+        .classname          = "weapon_empty",
+        .use                = NULL,
+        .weaponthink        = Weapon_Empty,
+        .pickup_sound       = "",
+        .view_model         = "",
+        .icon               = "",
+        .pickup_name        = "Empty",
+        .flags              = 0,
+        .weapmodel          = 0,
+        .precaches          = (const char *const []) {
+            NULL
+        },
+    },
+
     /* weapon_blaster (.3 .3 1) (-16 -16 -16) (16 16 16)
     always owned, never in the world
     */
     {
         .classname          = "weapon_blaster",
+        .pickup             = Pickup_Weapon,
         .use                = Use_Weapon,
         .weaponthink        = Weapon_Blaster,
         .pickup_sound       = "misc/w_pkup.wav",
+        .world_model        = "models/weapons/g_blast/tris.md2",
+        .world_model_flags  = EF_ROTATE,
         .view_model         = "models/weapons/v_blast/tris.md2",
         .icon               = "w_blaster",
         .pickup_name        = "Blaster",
-        .flags              = IT_WEAPON | IT_STAY_COOP,
+        .flags              = IT_WEAPON | IT_STAY_COOP | IT_WEPSLOT_PISTOL,
         .weapmodel          = WEAP_BLASTER,
         .precaches          = (const char *const []) {
             "models/objects/laser/tris.md2",
@@ -1192,7 +1212,7 @@ const gitem_t itemlist[] = {
         .pickup_name        = "Shotgun",
         .quantity           = 1,
         .ammo               = "Shells",
-        .flags              = IT_WEAPON | IT_STAY_COOP,
+        .flags              = IT_WEAPON | IT_STAY_COOP | IT_WEPSLOT_SHOTGUN,
         .weapmodel          = WEAP_SHOTGUN,
         .precaches          = (const char *const []) {
             "weapons/shotgf1b.wav",
@@ -1217,7 +1237,7 @@ const gitem_t itemlist[] = {
         .pickup_name        = "Super Shotgun",
         .quantity           = 2,
         .ammo               = "Shells",
-        .flags              = IT_WEAPON | IT_STAY_COOP,
+        .flags              = IT_WEAPON | IT_STAY_COOP | IT_WEPSLOT_SHOTGUN,
         .weapmodel          = WEAP_SUPERSHOTGUN,
         .precaches          = (const char *const []) {
             "weapons/sshotf1b.wav",
@@ -1241,7 +1261,7 @@ const gitem_t itemlist[] = {
         .pickup_name        = "Machinegun",
         .quantity           = 1,
         .ammo               = "Bullets",
-        .flags              = IT_WEAPON | IT_STAY_COOP,
+        .flags              = IT_WEAPON | IT_STAY_COOP | IT_WEPSLOT_BULLET,
         .weapmodel          = WEAP_MACHINEGUN,
         .precaches          = (const char *const []) {
             "weapons/machgf1b.wav",
@@ -1269,7 +1289,7 @@ const gitem_t itemlist[] = {
         .pickup_name        = "Chaingun",
         .quantity           = 1,
         .ammo               = "Bullets",
-        .flags              = IT_WEAPON | IT_STAY_COOP,
+        .flags              = IT_WEAPON | IT_STAY_COOP | IT_WEPSLOT_BULLET,
         .weapmodel          = WEAP_CHAINGUN,
         .precaches          = (const char *const []) {
             "weapons/machgf1b.wav",
@@ -1330,7 +1350,7 @@ const gitem_t itemlist[] = {
         .pickup_name        = "Grenade Launcher",
         .quantity           = 1,
         .ammo               = "Grenades",
-        .flags              = IT_WEAPON | IT_STAY_COOP,
+        .flags              = IT_WEAPON | IT_STAY_COOP | IT_WEPSLOT_GRENADE,
         .weapmodel          = WEAP_GRENADELAUNCHER,
         .precaches          = (const char *const []) {
             "models/objects/grenade/tris.md2",
@@ -1357,7 +1377,7 @@ const gitem_t itemlist[] = {
         .pickup_name        = "Rocket Launcher",
         .quantity           = 1,
         .ammo               = "Rockets",
-        .flags              = IT_WEAPON | IT_STAY_COOP,
+        .flags              = IT_WEAPON | IT_STAY_COOP | IT_WEPSLOT_ROCKET,
         .weapmodel          = WEAP_ROCKETLAUNCHER,
         .precaches          = (const char *const []) {
             "models/objects/rocket/tris.md2",
@@ -1385,7 +1405,7 @@ const gitem_t itemlist[] = {
         .pickup_name        = "HyperBlaster",
         .quantity           = 1,
         .ammo               = "Cells",
-        .flags              = IT_WEAPON | IT_STAY_COOP,
+        .flags              = IT_WEAPON | IT_STAY_COOP | IT_WEPSLOT_ENERGY,
         .weapmodel          = WEAP_HYPERBLASTER,
         .precaches          = (const char *const []) {
             "models/objects/laser/tris.md2",
@@ -1414,7 +1434,7 @@ const gitem_t itemlist[] = {
         .pickup_name        = "Railgun",
         .quantity           = 1,
         .ammo               = "Slugs",
-        .flags              = IT_WEAPON | IT_STAY_COOP,
+        .flags              = IT_WEAPON | IT_STAY_COOP | IT_WEPSLOT_HEAVY,
         .weapmodel          = WEAP_RAILGUN,
         .precaches          = (const char *const []) {
             "weapons/railgf1a.wav",
@@ -1439,7 +1459,7 @@ const gitem_t itemlist[] = {
         .pickup_name        = "BFG10K",
         .quantity           = 50,
         .ammo               = "Cells",
-        .flags              = IT_WEAPON | IT_STAY_COOP,
+        .flags              = IT_WEAPON | IT_STAY_COOP | IT_WEPSLOT_HEAVY,
         .weapmodel          = WEAP_BFG,
         .precaches          = (const char *const []) {
             "sprites/s_bfg1.sp2",
@@ -1449,6 +1469,31 @@ const gitem_t itemlist[] = {
             "weapons/bfg__l1a.wav",
             "weapons/bfg__x1b.wav",
             "weapons/bfg_hum.wav",
+            NULL
+        },
+    },
+    {
+        .classname          = "weapon_plasmagun",
+        .pickup             = Pickup_Weapon,
+        .use                = Use_Weapon,
+        .drop               = Drop_Weapon,
+        .weaponthink        = Weapon_PlasmaGun,
+        .pickup_sound       = "misc/w_pkup.wav",
+        .world_model        = "models/weapons/g_plasma/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .view_model         = "models/weapons/v_plasma/tris.md2",
+        .icon               = "w_hyperblaster",
+        .pickup_name        = "PlasmaGun",
+        .quantity           = 1,
+        .ammo               = "Cells",
+        .flags              = IT_WEAPON | IT_STAY_COOP | IT_WEPSLOT_ENERGY,
+        .weapmodel          = WEAP_PLASMA,
+        .precaches          = (const char *const []) {
+            "models/misc/plasma/tris.md2",
+            "weapons/plasma/fire.wav",
+            "weapons/plasma/explode.wav",
+            "weapons/plasma/hum.wav",
+            "misc/lasfly.wav",
             NULL
         },
     },

@@ -483,7 +483,7 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
                 {
                     if (targ->monsterinfo.currentmove)
                     {
-                        if (targ->s.frame == targ->monsterinfo.currentmove->lastframe)
+                        if (targ->s.frame == targ->monsterinfo.currentmove->lastframe && targ->svflags & SVF_DEADMONSTER)
                         {
                             targ->think = monster_think;
                             targ->nextthink = level.framenum + 1;

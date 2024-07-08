@@ -502,6 +502,7 @@ static const save_field_t actorfields[] = {
     DETA(details, ACTOR_MAX_DETAILS),
 
     I(cnt),
+    I(flags),
     I(anextthink),
     P(athink, P_athink),
 

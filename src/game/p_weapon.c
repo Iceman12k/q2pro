@@ -114,15 +114,35 @@ bool Pickup_Weapon(edict_t *ent, edict_t *other)
             return false;   // leave the weapon for others to pickup
     }
 
+    // if this is a slotted item, we should only be able to have one!
+    if (ent->item->flags & IT_WEPSLOT)
+    {
+        for (int i = 0; i < game.num_items; i++)
+        {
+            if (other->client->pers.inventory[i] <= 0)
+                continue;
+            
+            const gitem_t *item = &itemlist[i];
+            if (WEP_IS_SLOT(item->flags, ent->item->flags))
+                return false;
+        }
+    }
+
     other->client->pers.inventory[index]++;
 
     if (!(ent->spawnflags & DROPPED_ITEM)) {
         // give them some ammo with it
-        ammo = FindItem(ent->item->ammo);
-        if ((int)dmflags->value & DF_INFINITE_AMMO)
-            Add_Ammo(other, ammo, 1000);
-        else
-            Add_Ammo(other, ammo, ammo->quantity);
+        if (ent->item->ammo)
+        {
+            ammo = FindItem(ent->item->ammo);
+            if (ammo)
+            {
+                if ((int)dmflags->value & DF_INFINITE_AMMO)
+                    Add_Ammo(other, ammo, 1000);
+                else
+                    Add_Ammo(other, ammo, ammo->quantity);
+            }
+        }
 
         if (!(ent->spawnflags & DROPPED_PLAYER_ITEM)) {
             if (deathmatch->value) {
@@ -218,6 +238,11 @@ void NoAmmoWeaponChange(edict_t *ent)
     if (ent->client->pers.inventory[ITEM_INDEX(FindItem("cells"))]
         &&  ent->client->pers.inventory[ITEM_INDEX(FindItem("hyperblaster"))]) {
         ent->client->newweapon = FindItem("hyperblaster");
+        return;
+    }
+    if (ent->client->pers.inventory[ITEM_INDEX(FindItem("cells"))]
+        &&  ent->client->pers.inventory[ITEM_INDEX(FindItem("plasmagun"))]) {
+        ent->client->newweapon = FindItem("plasmagun");
         return;
     }
     if (ent->client->pers.inventory[ITEM_INDEX(FindItem("bullets"))]
@@ -317,14 +342,16 @@ void Drop_Weapon(edict_t *ent, const gitem_t *item)
         return;
 
     index = ITEM_INDEX(item);
-    // see if we're already using it
-    if (((item == ent->client->pers.weapon) || (item == ent->client->newweapon)) && (ent->client->pers.inventory[index] == 1)) {
-        gi.cprintf(ent, PRINT_HIGH, "Can't drop current weapon\n");
-        return;
-    }
 
     Drop_Item(ent, item);
     ent->client->pers.inventory[index]--;
+
+    // see if we're already using it
+    if (((item == ent->client->pers.weapon) || (item == ent->client->newweapon)) && (ent->client->pers.inventory[index] <= 0)) {
+        //gi.cprintf(ent, PRINT_HIGH, "Can't drop current weapon\n");
+        NoAmmoWeaponChange(ent);
+        //return;
+    }
 }
 
 /*
@@ -731,7 +758,7 @@ void Blaster_Fire(edict_t *ent, const vec3_t g_offset, int damage, bool hyper, i
     VectorScale(forward, -2, ent->client->kick_origin);
     ent->client->kick_angles[0] = -1;
 
-    fire_blaster(ent, start, forward, damage, 1500, effect, hyper);
+    fire_blaster(ent, start, forward, damage, hyper ? 1000 : 1200, effect, hyper);
 
     // send muzzle flash
     gi.WriteByte(svc_muzzleflash);
@@ -763,6 +790,13 @@ void Weapon_Blaster(edict_t *ent)
     static const int fire_frames[]  = {5, 0};
 
     Weapon_Generic(ent, 4, 8, 52, 55, pause_frames, fire_frames, Weapon_Blaster_Fire);
+}
+
+void Weapon_Empty(edict_t *ent)
+{
+    static const int pause_frames[] = {0};
+    static const int fire_frames[]  = {0};
+    Weapon_Generic(ent, 4, 8, 52, 55, pause_frames, fire_frames, NULL);
 }
 
 void Weapon_HyperBlaster_Fire(edict_t *ent)
@@ -829,6 +863,135 @@ void Weapon_HyperBlaster(edict_t *ent)
     static const int fire_frames[]  = {6, 7, 8, 9, 10, 11, 0};
 
     Weapon_Generic(ent, 5, 20, 49, 53, pause_frames, fire_frames, Weapon_HyperBlaster_Fire);
+}
+
+
+void Plasma_Fire(edict_t *ent, const vec3_t g_offset, int damage, int effect, float r)
+{
+    vec3_t  forward, right, up;
+    vec3_t  start;
+    vec3_t  offset;
+
+    if (is_quad)
+        damage *= 4;
+    AngleVectors(ent->client->v_angle, forward, right, up);
+    VectorSet(offset, 24, 8, ent->viewheight - 8);
+    VectorAdd(offset, g_offset, offset);
+    P_ProjectSource(ent->client, ent->s.origin, offset, forward, right, start);
+
+    VectorScale(forward, -2, ent->client->kick_origin);
+
+    if (r)
+    {
+        VectorMA(forward, (r * 0.5) + (r * random()), up, forward);
+        VectorMA(forward, r * crandom() * 0.8, right, forward);
+    }
+
+    fire_plasma(ent, start, forward, damage, 1500, effect, 0.0);
+
+    // send muzzle flash
+    /*
+    gi.WriteByte(svc_muzzleflash);
+    gi.WriteShort(ent - g_edicts);
+    gi.WriteByte(MZ_BLUEHYPERBLASTER | MZ_SILENCED);
+    gi.multicast(ent->s.origin, MULTICAST_PVS);
+    */
+
+    PlayerNoise(ent, start, PNOISE_WEAPON);
+}
+
+void Weapon_PlasmaGun_Fire(edict_t *ent)
+{
+    int     effect;
+    int     damage;
+
+    //ent->client->weapon_sound = gi.soundindex("weapons/plasma/fire.wav");
+
+    if (ent->client->ps.gunframe >= 10 && ent->client->ps.gunframe <= 11)
+    {
+        ent->client->ps.gunframe++;
+        return;
+    }
+    
+    if (ent->client->ps.gunframe == 6 || ent->client->ps.gunframe == 8)
+    {
+        if (ent->client->pers.inventory[ent->client->ammo_index] < 1) {
+            if (level.framenum >= ent->pain_debounce_framenum) {
+                gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/noammo.wav"), 1, ATTN_NORM, 0);
+                ent->pain_debounce_framenum = level.framenum + 1 * BASE_FRAMERATE;
+            }
+            ent->client->weapon_sound = 0;
+            ent->client->ps.gunframe = 12;
+            ent->client->weaponstate = WEAPON_READY;
+            NoAmmoWeaponChange(ent);
+            return;
+        }
+        else
+        {
+            if (!((int)dmflags->value & DF_INFINITE_AMMO))
+                ent->client->pers.inventory[ent->client->ammo_index]--;
+        }
+    }
+    
+    if (ent->client->ps.gunframe >= 6 && ent->client->ps.gunframe <= 8)
+    {
+        effect = EF_BLUEHYPERBLASTER;
+        if (deathmatch->value)
+            damage = 18;
+        else
+            damage = 15;
+        Plasma_Fire(ent, vec3_origin, damage, effect, ((ent->client->ps.gunframe) - 6) * 0.015);
+        if (ent->client->ps.gunframe == 7)
+            ent->client->kick_angles[0] = -0.8;
+        else
+            ent->client->kick_angles[0] = -1.8;
+        gi.sound(ent, CHAN_WEAPON, gi.soundindex("weapons/plasma/fire.wav"), 1, ATTN_NORM, 0);
+        if (ent->client->ps.gunframe == 6)
+
+        ent->client->anim_priority = ANIM_ATTACK;
+        if (ent->client->ps.pmove.pm_flags & PMF_DUCKED) {
+            ent->s.frame = FRAME_crattak1 - 1;
+            ent->client->anim_end = FRAME_crattak9;
+        } else {
+            ent->s.frame = FRAME_attack1 - 1;
+            ent->client->anim_end = FRAME_attack8;
+        }
+
+        ent->client->ps.gunframe++;
+    }
+
+    if (ent->client->ps.gunframe == 9)
+    {
+        if (ent->client->buttons & BUTTON_ATTACK)
+        {
+            ent->client->ps.gunframe = 5;
+        }
+        else
+        {
+            ent->client->weapon_sound = 0;
+            return;
+        }
+    }
+
+    if (ent->client->ps.gunframe >= 8) {
+        //gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/hyprbd1a.wav"), 1, ATTN_NORM, 0);
+        ent->client->weapon_sound = 0;
+    }
+
+}
+
+void Weapon_PlasmaGun(edict_t *ent)
+{
+	static int	pause_frames[]	= {12, 18, 0};
+	static int	fire_frames[]	= {6, 7, 8, 0};
+
+    ent->client->weapon_sound = 0;
+    if (ent->client->weaponstate == WEAPON_READY || ent->client->weaponstate == WEAPON_FIRING)
+    {
+        ent->client->weapon_sound = gi.soundindex("weapons/plasma/hum.wav");
+    }
+
+	Weapon_Generic (ent, 4, 11, 41, 44, pause_frames, fire_frames, Weapon_PlasmaGun_Fire);
 }
 
 /*

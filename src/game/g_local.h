@@ -204,6 +204,22 @@ typedef struct {
 #define IT_STAY_COOP    BIT(3)
 #define IT_KEY          BIT(4)
 #define IT_POWERUP      BIT(5)
+// bit 6 ... ?
+// bit 7 ... ?
+#define IT_WEPSLOT_0    BIT(8)
+#define IT_WEPSLOT_1    BIT(9)
+#define IT_WEPSLOT_2    BIT(10)
+#define IT_WEPSLOT_3    BIT(11)
+
+#define IT_WEPSLOT          (IT_WEPSLOT_0 | IT_WEPSLOT_1 | IT_WEPSLOT_2 | IT_WEPSLOT_3)
+#define IT_WEPSLOT_PISTOL   (IT_WEPSLOT_0)
+#define IT_WEPSLOT_ENERGY   (IT_WEPSLOT_1)
+#define IT_WEPSLOT_BULLET   (IT_WEPSLOT_2)
+#define IT_WEPSLOT_SHOTGUN  (IT_WEPSLOT_3)
+#define IT_WEPSLOT_GRENADE  (IT_WEPSLOT_0 | IT_WEPSLOT_1)
+#define IT_WEPSLOT_ROCKET   (IT_WEPSLOT_0 | IT_WEPSLOT_2)
+#define IT_WEPSLOT_HEAVY    (IT_WEPSLOT_0 | IT_WEPSLOT_3)
+#define WEP_IS_SLOT(x, y)   ((x & IT_WEPSLOT) == (y & IT_WEPSLOT))
 
 // gitem_t->weapmodel for weapons indicates model index
 #define WEAP_BLASTER            1
@@ -217,6 +233,7 @@ typedef struct {
 #define WEAP_HYPERBLASTER       9
 #define WEAP_RAILGUN            10
 #define WEAP_BFG                11
+#define WEAP_PLASMA             12
 
 // Reki (June 28 2024): our stuff here
 typedef struct detail_edict_s detail_edict_t;

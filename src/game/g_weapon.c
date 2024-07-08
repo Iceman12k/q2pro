@@ -391,8 +391,11 @@ void plasma_touch(actor_t *actor, edict_t *other, cplane_t *plane, csurface_t *s
         gi.multicast(bolt->s.origin, MULTICAST_PVS);
     }
 
-    bolt->s.modelindex = 0;
-    Actor_Cleanup(actor);
+    actor->aphysics = Actor_RunThink;
+    actor->anextthink = level.framenum + 1;
+    actor->athink = Actor_Cleanup;
+    //bolt->s.modelindex = 0;
+    //Actor_Cleanup(actor);
 }
 
 void plasma_runphysics(actor_t *actor, float delta)
@@ -421,7 +424,7 @@ void plasma_aphysics(actor_t *actor)
     if (actor->cnt < 0)
     {
         actor->cnt++;
-        plasma_runphysics(actor, 0);
+        plasma_runphysics(actor, 0.001);
         return;
     }
 
@@ -460,8 +463,8 @@ void fire_plasma(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
     actor->anextthink = level.framenum + 2 * BASE_FRAMERATE;
     actor->athink = Actor_Cleanup;
 
-    if (self->client)
-        check_dodge(self, bolt->s.origin, dir, speed);
+    //if (self->client)
+    //    check_dodge(self, bolt->s.origin, dir, speed);
     
     tr = gi.trace(self->s.origin, NULL, NULL, bolt->s.origin, bolt, MASK_SHOT);
     if (tr.fraction < 1.0f) {

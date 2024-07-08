@@ -283,6 +283,7 @@ extern void actor_walk(edict_t *);
 extern void AngleMove_Begin(edict_t *);
 extern void AngleMove_Done(edict_t *);
 extern void AngleMove_Final(edict_t *);
+extern void arm_think(edict_t *);
 extern void barrel_delay(edict_t *, edict_t *, edict_t *, int, vec3_t);
 extern void barrel_explode(edict_t *);
 extern void barrel_touch(edict_t *, edict_t *, cplane_t *, csurface_t *);
@@ -623,6 +624,7 @@ const save_ptr_t save_ptrs[] = {
 { P_think, AngleMove_Begin },
 { P_think, AngleMove_Done },
 { P_think, AngleMove_Final },
+{ P_think, arm_think },
 { P_think, barrel_explode },
 { P_think, bfg_explode },
 { P_think, bfg_think },
