@@ -584,7 +584,7 @@ cvar_t *lca_grenade; // Allows grenade pin pulling during LCA
 cvar_t *breakableglass; // Moved from cgf_sfx_glass, enables breakable glass (0,1,2)
 cvar_t *glassfragmentlimit; // Moved from cgf_sfx_glass, sets glass fragment limit
 
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 cvar_t *use_newirvision;
 cvar_t *use_indicators;
 cvar_t *use_xerp;

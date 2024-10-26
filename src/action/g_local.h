@@ -899,7 +899,7 @@ typedef struct
 
   int model_null;
   int model_lsight;
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
   int model_arrow;
 #endif
 
@@ -1374,7 +1374,7 @@ extern cvar_t *lca_grenade; // Allows grenade pin pulling during LCA
 extern cvar_t *breakableglass; // Moved from cgf_sfx_glass, enables breakable glass (0,1,2)
 extern cvar_t *glassfragmentlimit; // Moved from cgf_sfx_glass, sets glass fragment limit
 
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 extern int (*engine_Client_GetVersion)(edict_t *ent);
 extern int (*engine_Client_GetProtocol)(edict_t *ent);
 
@@ -1437,7 +1437,7 @@ extern cvar_t *gm; // Gamemode
 extern cvar_t *gmf; // Gamemodeflags
 extern cvar_t *sv_idleremove; // Remove idlers
 
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 extern cvar_t *use_newirvision;		// enable new irvision (only highlight baddies)
 extern cvar_t *use_indicators;		// enable/allow indicators
 extern cvar_t *use_xerp;			// allow clients to use cl_xerp
@@ -1656,7 +1656,7 @@ void ClientBeginServerFrame (edict_t * ent);
 //
 // g_ext.c
 //
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 void G_InitExtEntrypoints(void);
 void* G_FetchGameExtension(char *name);
 #endif
@@ -1890,7 +1890,7 @@ typedef struct
 	int limp_nopred;
 	int spec_flags;
 	qboolean antilag_optout;
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	int cl_xerp;
 	int cl_indicators;
 #endif
@@ -2002,7 +2002,7 @@ typedef struct
   vec3_t jmp_teleport_v_angle;
   qboolean jmp_teleport_ducked;
 
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
   int	hud_items[128];
   int	hud_type;
 #endif
@@ -2054,7 +2054,7 @@ struct gclient_s
 	int					clientNum;
 
 	// Reki: cvar sync
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	cvarsyncvalue_t cl_cvar[CVARSYNC_MAX];
 #endif
 
@@ -2240,7 +2240,7 @@ struct gclient_s
 	int			ctf_grapplereleaseframe;	// frame of grapple release
 	qboolean	ctf_hasflag;		// set to true if this client has the flag
 
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	//AQTION - Reki: Teammate indicators
 	edict_t		*arrow;
 #endif
@@ -2760,7 +2760,7 @@ struct edict_s
 	vec3_t	lastPosition; 
 	qboolean	nameused[NUMNAMES][NUMNAMES];
 	qboolean	newnameused[AQ2WTEAMSIZE];
-	#if AQTION_EXTENSION
+	#ifdef AQTION_EXTENSION
 	//AQTION - Reki: Entity indicators
 	edict_t		*obj_arrow;
 	#endif
@@ -2917,7 +2917,7 @@ typedef struct team_s
 	char leader_name[MAX_SKINLEN];
 	char leader_skin[MAX_QPATH];
 	char leader_skin_index[MAX_QPATH];
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 #if AQTION_HUD
 	int	 ghud_resettime;
 	byte ghud_icon;
@@ -2943,7 +2943,7 @@ extern int gameSettings;
 #include "a_dom.h"
 #include "a_esp.h"
 
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 #define HAS_CVARSYNC(ent) (Client_GetProtocol(ent) == 38 && Client_GetVersion(ent) >= 3013)
 
 // hud (through ghud extension)

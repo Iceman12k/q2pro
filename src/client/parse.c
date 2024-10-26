@@ -1581,7 +1581,7 @@ void CL_ParseServerMessage(void)
 			continue;
 
 		case svc_ghudupdate:
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 			if (cls.serverProtocol != PROTOCOL_VERSION_AQTION)
 				goto badbyte;
 			//CL_ParseGhud();

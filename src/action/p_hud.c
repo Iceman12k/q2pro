@@ -741,7 +741,7 @@ void G_SetStats (edict_t * ent)
 }
 
 
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 
 void HUD_SetType(edict_t *clent, int type)
 {

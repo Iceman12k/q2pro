@@ -1481,7 +1481,7 @@ int MSG_WriteDeltaPlayerstate_Aqtion(const player_packed_t    *from,
 	//
 	// aqtion extension checks
 	//
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	if (to->pmove.pm_aq2_flags != from->pmove.pm_aq2_flags)
 		aqtflags |= AQPS_PMFLAGS;
 	if (to->pmove.pm_timestamp != from->pmove.pm_timestamp)
@@ -1562,7 +1562,7 @@ int MSG_WriteDeltaPlayerstate_Aqtion(const player_packed_t    *from,
 	//
 	MSG_WriteByte(aqtflags);
 
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	if (aqtflags & AQPS_PMFLAGS)
 		MSG_WriteByte(to->pmove.pm_aq2_flags);
 	if (aqtflags & AQPS_TIMESTAMP)
@@ -2232,7 +2232,7 @@ void MSG_ReadDeltaUsercmd_Enhanced(const usercmd_t *from, usercmd_t *to)
 
 
 
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 
 int MSG_DeltaGhud(ghud_element_t *from, ghud_element_t *to, int protocolmask)
 {
@@ -2936,7 +2936,7 @@ void MSG_ParseDeltaPlayerstate_Aqtion(const player_state_t    *from,
     //
     // parse the aqtion extensions
     //
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	aqtflags = MSG_ReadByte();
 
 	if (aqtflags & AQPS_PMFLAGS)

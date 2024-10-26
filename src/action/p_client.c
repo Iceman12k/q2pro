@@ -341,7 +341,7 @@ static void FreeClientEdicts(gclient_t *client)
 		client->ctf_grapple = NULL;
 	}
 
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	//remove arrow
 	if (client->arrow) {
 		G_FreeEdict(client->arrow);
@@ -2874,7 +2874,7 @@ void PutClientInServer(edict_t * ent)
 	client_persistant_t pers;
 	client_respawn_t resp;
 	gitem_t *item;
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	cvarsyncvalue_t cl_cvar[CVARSYNC_MAX];
 #endif
 
@@ -2891,13 +2891,13 @@ void PutClientInServer(edict_t * ent)
 	// deathmatch wipes most client data every spawn
 	resp = client->resp;
 	pers = client->pers;
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	memcpy(cl_cvar, client->cl_cvar, sizeof(client->cl_cvar));
 #endif
 
 	memset(client, 0, sizeof(*client));
 
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	memcpy(client->cl_cvar, cl_cvar, sizeof(client->cl_cvar));
 #endif
 	client->pers = pers;
@@ -2990,7 +2990,7 @@ void PutClientInServer(edict_t * ent)
 	ent->s.skinnum = ent - g_edicts - 1;
 	ent->s.modelindex = 255;	// will use the skin specified model
 
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	// teammate indicator arrows
 	if (use_indicators->value && teamplay->value && !client->arrow && client->resp.team)
 	{
@@ -3122,7 +3122,7 @@ void PutClientInServer(edict_t * ent)
 		ent->svflags |= SVF_NOCLIENT;
 		ent->client->ps.gunindex = 0;
 
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 		if (!ent->client->resp.team)
 			HUD_SetType(ent, 1);
 #endif
@@ -3134,7 +3134,7 @@ void PutClientInServer(edict_t * ent)
 	}  // end if( respawn )
 #endif
 
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	HUD_SetType(ent, -1);
 #endif
 
@@ -3247,7 +3247,7 @@ void ClientBeginDeathmatch(edict_t * ent)
 	ent->client->resp.enterframe = level.framenum;
 	ent->client->resp.gldynamic = 1;
 	
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	if (teamplay->value)
 	{
 		HUD_SetType(ent, 1);
@@ -3485,7 +3485,7 @@ void ClientUserinfoChanged(edict_t *ent, char *userinfo)
 
 
 	// Reki - disable prediction on limping
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	if (Client_GetProtocol(ent) == 38) // if we're using AQTION protocol, we have limp prediction
 	{
 		client->pers.limp_nopred = 0;
@@ -3501,12 +3501,12 @@ void ClientUserinfoChanged(edict_t *ent, char *userinfo)
 			client->pers.limp_nopred = 2 | (client->pers.limp_nopred & 256); // client doesn't specify, so use auto threshold
 		else if (limp == 0)
 			client->pers.limp_nopred = 0; // client explicity wants old behavior
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	}
 #endif
 
 
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	if (!HAS_CVARSYNC(ent)) // only do these cl cvars if cvarsync isn't a thing, since it's much better than userinfo
 	{
 #endif
@@ -3517,7 +3517,7 @@ void ClientUserinfoChanged(edict_t *ent, char *userinfo)
 		else
 			client->pers.spec_flags &= ~(SPECFL_SPECHUD | SPECFL_SPECHUD_NEW);
 
-	#if AQTION_EXTENSION
+	#ifdef AQTION_EXTENSION
 		if (Client_GetProtocol(ent) == 38) // Reki: new clients get new spec hud
 			client->pers.spec_flags &= ~SPECFL_SPECHUD;
 	#endif
@@ -3538,7 +3538,7 @@ void ClientUserinfoChanged(edict_t *ent, char *userinfo)
 
 		if (sv_antilag->value && antilag_value != client->pers.antilag_optout)
 			gi.cprintf(ent, PRINT_MEDIUM, "YOUR CL_ANTILAG IS NOW SET TO %i\n", !client->pers.antilag_optout);
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	}
 #endif
 }
@@ -3948,7 +3948,7 @@ void ClientThink(edict_t * ent, usercmd_t * ucmd)
 		qboolean has_enhanced_slippers = esp_enhancedslippers->value && INV_AMMO(ent, SLIP_NUM);
 		if( client->leg_damage && ent->groundentity && ! has_enhanced_slippers )
 		{
-			#if AQTION_EXTENSION
+			#ifdef AQTION_EXTENSION
 			pm.s.pm_aq2_flags |= PMF_AQ2_LIMP;
 			pm.s.pm_aq2_leghits = min(client->leghits, 255);
 			#else
@@ -3968,7 +3968,7 @@ void ClientThink(edict_t * ent, usercmd_t * ucmd)
 			pm.s.pm_flags |= PMF_JUMP_HELD;
 			#endif
 		}
-		#if AQTION_EXTENSION
+		#ifdef AQTION_EXTENSION
 		else
 		{
 			pm.s.pm_aq2_flags &= ~PMF_AQ2_LIMP;
@@ -6140,7 +6140,7 @@ void ClientBeginServerFrame(edict_t * ent)
 			Cmd_PMLCA_f(ent);
 	}
 
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	// resync pm_timestamp so all limps are roughly synchronous, to try to maintain original behavior
 	unsigned short world_timestamp = (int)(level.time * 1000) % 60000;
 	client->ps.pmove.pm_timestamp = world_timestamp;

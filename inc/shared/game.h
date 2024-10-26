@@ -111,7 +111,7 @@ struct gclient_old_s {
 
     // the game dll can add anything it wants after
     // this point in the structure
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	cvarsyncvalue_t cl_cvar[CVARSYNC_MAX];
 #endif
 };
@@ -126,7 +126,7 @@ struct gclient_new_s {
 
     // the game dll can add anything it wants after
     // this point in the structure
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	cvarsyncvalue_t cl_cvar[CVARSYNC_MAX];
 #endif
 };

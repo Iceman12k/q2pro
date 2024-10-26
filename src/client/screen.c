@@ -2387,7 +2387,7 @@ static void SCR_DrawCrosshair(void)
 }
 
 
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 void CL_Clear3DGhudQueue(void)
 {
 	ghud_3delement_t *link;
@@ -2658,7 +2658,7 @@ static void SCR_Draw2D(void)
     SCR_DrawStats();
 
     SCR_DrawLayout();
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	// Draw game defined hud elements
 	SCR_DrawGhud();
 

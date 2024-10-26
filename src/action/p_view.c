@@ -1398,7 +1398,7 @@ void ClientEndServerFrame (edict_t * ent)
 	current_player = ent;
 	current_client = ent->client;
 
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	if (current_client->arrow)
 	{
 		// set new origin

@@ -1500,7 +1500,7 @@ void JoinTeam (edict_t * ent, int desired_team, int skip_menuclose)
 		G_UpdatePlayerStatusbar(ent, 1);
 	}
 
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	if (desired_team == NOTEAM)
 		HUD_SetType(ent, 1);
 	else
@@ -1566,7 +1566,7 @@ void LeaveTeam (edict_t * ent)
 	ent->client->resp.team = NOTEAM;
 	G_UpdatePlayerStatusbar(ent, 1);
 
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	HUD_SetType(ent, 1);
 #endif
 

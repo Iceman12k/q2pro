@@ -2077,7 +2077,7 @@ void SP_worldspawn (edict_t * ent)
 
 	level.model_null = gi.modelindex("sprites/null.sp2");      // null sprite
 	level.model_lsight = gi.modelindex("sprites/lsight.sp2");  // laser sight dot sprite
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	level.model_arrow = gi.modelindex("models/indicator/arrow_red.md2");
 	gi.modelindex("models/indicator/arrow_blue.md2");
 	gi.modelindex("models/indicator/arrow_green.md2");

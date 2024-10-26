@@ -1697,7 +1697,7 @@ static void Cmd_PrintSettings_f( edict_t * ent )
 	itmflagsSettings( text, sizeof( text ), (int)itm_flags->value );
 
 	length = strlen( text );
-	#if AQTION_EXTENSION
+	#ifdef AQTION_EXTENSION
 	Q_snprintf( text + length, sizeof( text ) - length, "\n"
 		"timelimit   %2d roundlimit  %2d roundtimelimit %2d\n"
 		"limchasecam %2d tgren       %2d antilag_interp %2d\n"

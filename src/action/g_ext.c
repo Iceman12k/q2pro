@@ -8,7 +8,7 @@
 #include "g_local.h"
 #include "q_ghud.h"
 
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 //
 // Reki
 // Setup struct and macro for defining engine-callable entrypoints

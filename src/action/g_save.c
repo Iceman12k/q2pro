@@ -678,7 +678,7 @@ void InitGame( void )
 
 
 	// new AQtion Extension cvars
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	use_newirvision = gi.cvar("use_newirvision", "1", 0);
 	use_indicators = gi.cvar("use_indicators", "1", 0);
 	use_xerp = gi.cvar("use_xerp", "1", 0);
@@ -802,7 +802,7 @@ void InitGame( void )
 	gi.cvar_forceset("g_view_high", va("%d", STANDING_VIEWHEIGHT));
 	gi.cvar_forceset("g_view_low", va("%d", CROUCHING_VIEWHEIGHT));
 
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	CvarSync_Set(clcvar_cl_antilag, "cl_antilag", "1");
 	CvarSync_Set(clcvar_cl_indicators, "cl_indicators", "1");
 	CvarSync_Set(clcvar_cl_xerp, "cl_xerp", "0");

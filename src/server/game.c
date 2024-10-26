@@ -952,7 +952,7 @@ void SV_ShutdownGameProgs(void)
     Cvar_Set("g_view_predict", "0");
     Z_LeakTest(TAG_FREE);
 	
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	GE_customizeentityforclient = NULL;
 	GE_CvarSync_Updated = NULL;
 #endif
@@ -992,7 +992,7 @@ static void *SV_LoadGameLibrary(const char *libdir, const char *gamedir)
 }
 
 
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 typedef struct extension_func_s
 {
 	char		name[MAX_QPATH];
@@ -1138,7 +1138,7 @@ void SV_InitGameProgs(void)
     // unload anything we have now
     SV_ShutdownGameProgs();
 
-#if AQTION_EXTENSION
+#ifdef AQTION_EXTENSION
 	SV_Ghud_Clear();
 	SV_CvarSync_Clear();
 #endif
