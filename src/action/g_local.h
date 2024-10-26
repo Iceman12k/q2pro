@@ -1658,7 +1658,7 @@ void ClientBeginServerFrame (edict_t * ent);
 //
 #ifdef AQTION_EXTENSION
 void G_InitExtEntrypoints(void);
-void* G_FetchGameExtension(char *name);
+void* G_FetchGameExtension(const char *name);
 #endif
 
 //

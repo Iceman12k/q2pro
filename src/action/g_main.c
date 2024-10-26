@@ -696,7 +696,7 @@ const game_export_ex_t gex = {
 
 	// // Functionality examples?
 	// // https://github.com/skullernet/q2pro/issues/294#issuecomment-1476818818
-    //.GetExtension = GetExtension,
+    .GetExtension = G_FetchGameExtension,
 
 };
 
@@ -704,31 +704,31 @@ q_exported const game_export_ex_t *GetGameAPIEx(game_import_ex_t *importx)
 {
     gix = importx;   // assign pointer, don't copy!
 	
-	//gex.CheckForExtension = G_FetchGameExtension;
+	//gex.GetExtension = G_FetchGameExtension;
 	G_InitExtEntrypoints();
-	engine_Client_GetProtocol = gix->CheckForExtension("Client_GetProtocol");
-	engine_Client_GetVersion = gix->CheckForExtension("Client_GetVersion");
+	engine_Client_GetProtocol = gix->GetExtension("Client_GetProtocol");
+	engine_Client_GetVersion = gix->GetExtension("Client_GetVersion");
 
-	engine_Ghud_ClearForClient = gix->CheckForExtension("Ghud_ClearForClient");
-	engine_Ghud_NewElement = gix->CheckForExtension("Ghud_NewElement");
-	engine_Ghud_RemoveElement = gix->CheckForExtension("Ghud_RemoveElement");
-	engine_Ghud_SetFlags = gix->CheckForExtension("Ghud_SetFlags");
-	engine_Ghud_SetInt = gix->CheckForExtension("Ghud_SetInt");
-	engine_Ghud_SetText = gix->CheckForExtension("Ghud_SetText");
-	engine_Ghud_SetPosition = gix->CheckForExtension("Ghud_SetPosition");
-	engine_Ghud_SetAnchor = gix->CheckForExtension("Ghud_SetAnchor");
-	engine_Ghud_SetColor = gix->CheckForExtension("Ghud_SetColor");
-	engine_Ghud_SetSize = gix->CheckForExtension("Ghud_SetSize");
+	engine_Ghud_ClearForClient = gix->GetExtension("Ghud_ClearForClient");
+	engine_Ghud_NewElement = gix->GetExtension("Ghud_NewElement");
+	engine_Ghud_RemoveElement = gix->GetExtension("Ghud_RemoveElement");
+	engine_Ghud_SetFlags = gix->GetExtension("Ghud_SetFlags");
+	engine_Ghud_SetInt = gix->GetExtension("Ghud_SetInt");
+	engine_Ghud_SetText = gix->GetExtension("Ghud_SetText");
+	engine_Ghud_SetPosition = gix->GetExtension("Ghud_SetPosition");
+	engine_Ghud_SetAnchor = gix->GetExtension("Ghud_SetAnchor");
+	engine_Ghud_SetColor = gix->GetExtension("Ghud_SetColor");
+	engine_Ghud_SetSize = gix->GetExtension("Ghud_SetSize");
 
-	engine_CvarSync_Set = gix->CheckForExtension("CvarSync_Set");
+	engine_CvarSync_Set = gix->GetExtension("CvarSync_Set");
 
-	SV_BSP = gix->CheckForExtension("Bsp");
-	CS_NAV = gix->CheckForExtension("Nav");
-	CS_DebugDraw = gix->CheckForExtension("DebugDraw");
-	SV_BotConnect = gix->CheckForExtension("SV_BotConnect");
-	SV_BotDisconnect = gix->CheckForExtension("SV_BotDisconnect");
-	SV_BotUpdateInfo = gix->CheckForExtension("SV_BotUpdateInfo");
-	SV_BotClearClients = gix->CheckForExtension("SV_BotClearClients");
+	SV_BSP = gix->GetExtension("Bsp");
+	CS_NAV = gix->GetExtension("Nav");
+	CS_DebugDraw = gix->GetExtension("DebugDraw");
+	SV_BotConnect = gix->GetExtension("SV_BotConnect");
+	SV_BotDisconnect = gix->GetExtension("SV_BotDisconnect");
+	SV_BotUpdateInfo = gix->GetExtension("SV_BotUpdateInfo");
+	SV_BotClearClients = gix->GetExtension("SV_BotClearClients");
 
     return &gex;
 }

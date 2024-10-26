@@ -297,7 +297,7 @@ void G_InitExtEntrypoints(void)
 }
 
 
-void* G_FetchGameExtension(char *name)
+void* G_FetchGameExtension(const char *name)
 {
 	Com_Printf("Game: G_FetchGameExtension for %s\n", name);
 	extension_func_t *ext;

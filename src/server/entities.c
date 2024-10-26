@@ -910,7 +910,7 @@ void SV_BuildClientFrame(client_t *client)
             Q_assert(temp.s.number == e);
             MSG_PackEntity(state, &temp.s, ENT_EXTENSION(client->csr, &temp));
         } else {
-            MSG_PackEntity(state, &ent->s, ENT_EXTENSION(client->csr, ent));
+            MSG_PackEntity(state, &ent_state, ENT_EXTENSION(client->csr, ent));
         }
 
 #if USE_FPS

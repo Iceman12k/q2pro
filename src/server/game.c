@@ -888,6 +888,7 @@ static const rektek_bots_api_v1_t rektek_bots_api_v1 = {
     .SV_BotClearClients = SV_BotClearClients,
 };
 
+static void* G_CheckForExtension(const char* text);
 static void *PF_GetExtension(const char *name)
 {
     if (!name){
@@ -909,9 +910,8 @@ static void *PF_GetExtension(const char *name)
     }
 #endif
 
-    return NULL;
+    return G_CheckForExtension(name);
 }
-static void* G_CheckForExtension(char *text);
 
 static const game_import_ex_t game_import_ex = {
     .apiversion = GAME_API_VERSION_EX,
@@ -924,7 +924,6 @@ static const game_import_ex_t game_import_ex = {
 
     .GetExtension = PF_GetExtension,
     .TagRealloc = PF_TagRealloc,
-    .CheckForExtension = G_CheckForExtension,
 };
 
 static void *game_library;
@@ -1021,7 +1020,7 @@ G_CheckForExtension
 Check for (and return) an extension function by name
 ================
 */
-static void* G_CheckForExtension(char *text)
+static void* G_CheckForExtension(const char *text)
 {
 	Com_Printf("G_CheckForExtension for %s\n", text);
 	extension_func_t *ext;
@@ -1194,6 +1193,9 @@ void SV_InitGameProgs(void)
             Com_Printf("Disabled: Extended game API version is too old.\n");
         } else {
             Com_Printf("Game supports Q2PRO extended API version %d.\n", gex->apiversion);
+
+            GE_customizeentityforclient = gex->GetExtension("customizeentityforclient");
+            GE_CvarSync_Updated = gex->GetExtension("CvarSync_Updated");
         }
     }
 
