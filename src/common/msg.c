@@ -840,6 +840,11 @@ void MSG_PackPlayerOld(player_packed_t *out, const player_state_old_t *in)
     out->pmove.pm_time = in->pmove.pm_time;
     out->pmove.gravity = in->pmove.gravity;
     VectorCopy(in->pmove.delta_angles, out->pmove.delta_angles);
+    #ifdef AQTION_EXTENSION
+    out->pmove.pm_aq2_flags = in->pmove.pm_aq2_flags;
+    out->pmove.pm_timestamp = in->pmove.pm_timestamp;
+    out->pmove.pm_aq2_leghits = in->pmove.pm_aq2_leghits;
+    #endif
 
     PACK_ANGLES(out->viewangles, in->viewangles);
     PACK_OFFSET(out->viewoffset, in->viewoffset);
