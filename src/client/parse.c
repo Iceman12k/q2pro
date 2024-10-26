@@ -973,7 +973,7 @@ static void CL_ParseTEntPacket(void)
         break;
 
     default:
-        Com_Error(ERR_DROP, "%s: bad type %i", __func__, te.type);
+        Com_Error(ERR_DROP, "%s: bad type (%i)", __func__, te.type);
     }
 }
 
@@ -1521,7 +1521,6 @@ void CL_ParseServerMessage(void)
 
 		case svc_temp_entity:
 			CL_ParseTEntPacket();
-			CL_ParseTEnt();
 			break;
 
 		case svc_muzzleflash:
